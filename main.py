@@ -20,7 +20,7 @@ def preprocess(tokens: List[str], lemmatize: bool = True, lower: bool = True,
         return representation
 
     nlp = spacy.load("de_core_news_sm") if lan_model is None else lan_model
-    nlp.Defaults.stop_words |= {"der", "die", "das", "Der", "Die", "Das"}
+    nlp.Defaults.stop_words |= {"der", "die", "das", "Der", "Die", "Das", "bei", "Bei", "In", "in"}
 
     for word in nlp.Defaults.stop_words:
         lex = nlp.vocab[word]
@@ -46,10 +46,10 @@ def to_vecs(tokens = List[str], use_phrases: bool = False) -> List[float]:
         bigram_transformer = Phrases(tokens)
         model = Word2Vec(bigram_transformer[tokens], size=100, window=10, min_count=1, workers=4)
     else:
-        model = Word2Vec(tokens, size=300, window=10, min_count=1, workers=4, iter=15)
+        model = Word2Vec(tokens, size=300, window=5, min_count=1, workers=4, iter=15)
     print(model.wv.most_similar("tumor"))
     return model.wv
 
-tokens = preprocess(tokens_from_file(path="E:/CPG-AMIA2020/Plain Text/cpg-tokens.txt")[:100000000])
+tokens = preprocess(tokens_from_file(path="E:/CPG-AMIA2020/Plain Text/cpg-tokens.txt")[:])
 print(tokens[:10])
-to_vecs([tokens])
+to_vecs([tokens], use_phrases=True)

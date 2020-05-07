@@ -1,10 +1,10 @@
 from collections import defaultdict
 from typing import List, Dict, Iterable
 import spacy
+import numpy as np
 from gensim import models as gensim
 from gensim.models import Word2Vec, FastText, Phrases
 from gensim.test.utils import get_tmpfile
-from gensim.test.utils import datapath
 import pandas as pd
 from simstring.feature_extractor.character_ngram import CharacterNgramFeatureExtractor
 from simstring.feature_extractor.word_ngram import WordNgramFeatureExtractor
@@ -14,11 +14,25 @@ from simstring.searcher import Searcher
 
 
 class UMLSMapper:
-    def __init__(self, umls_words: Iterable[str] = None):
+    def __init__(self, from_file=None, umls_words: Iterable[str] = None):
         # self.db = DictDatabase(WordNgramFeatureExtractor(2))
         self.db = DictDatabase(CharacterNgramFeatureExtractor(2))
-        if umls_words:
+
+        if from_file:
+            self.umls_dict, self.umls_reverse_dict = self.load_UMLS_dict(path=from_file)
+            self.add_words_to_db(self.umls_dict.keys())
+        else:
             self.add_words_to_db(umls_words)
+
+    def load_UMLS_dict(self, path: str ='E:/AML4DH-DATA/UMLS/GER_MRCONSO.RRF'):
+        df = pd.read_csv(path, delimiter="|", header=None)
+        df.columns = ["CUI", "LAT", "TS", "LUI", "STT", "SUI", "ISPREF", "AUI", "SAUI", "SCUI", "SDUI", "SAB", "TTY",
+                      "CODE", "STR", "SRL", "SUPPRESS", "CVF", "NONE"]
+        dic = {row["STR"]: row["CUI"] for id, row in df.iterrows()}
+        rev_dic = defaultdict(list)
+        for key, value in dic.items():
+            rev_dic[value].append(key)
+        return dic, rev_dic
 
     def add_words_to_db(self, words: Iterable[str]):
         for token in set(words):
@@ -36,6 +50,45 @@ class UMLSMapper:
                 dic[term] = related_terms
         return dic
         # return {term: self.search_term_sims(term) for term in set(terms)}
+
+    def standardize_words(self, tokens: List[str]):
+        concept_dict = self.search_all_term_sims(tokens)
+        standardized_tokens = []
+        for token in tokens:
+            mapping = concept_dict.get(token)
+            if mapping:
+                standardized_tokens.append(mapping[0])
+            else:
+                standardized_tokens.append(token)
+        return standardized_tokens
+
+    def get_umls_vectors_only(self, vectors: gensim.KeyedVectors):
+        medical_concepts = [word for word in vectors.index2word if word in self.umls_dict.values()]
+        print(len(medical_concepts), medical_concepts[:10])
+        concept_vecs = {concept: vectors.get_vector(concept) for concept in medical_concepts}
+        return concept_vecs
+
+    def un_umls(self, concept):
+        res = self.umls_reverse_dict.get(concept)
+        if res is None:
+            return concept
+        return res
+
+    def replace_UMLS(self, tokens: List[str]) -> List[str]:
+        return [self.un_umls(token) for token in tokens if self.un_umls(token)]
+
+    def replace_with_UMLS(self, tokens: List[str], delete_non_umls=False) -> List[str]:
+        def umls_code(token):
+            umls_code = self.umls_dict.get(token)
+            if umls_code is None:
+                if delete_non_umls:
+                    return None
+                else:
+                    return token
+            else:
+                return umls_code
+
+        return [umls_code(token) for token in tokens if umls_code(token)]
 
 
 def tokens_from_file(path: str) -> List[str]:
@@ -77,80 +130,76 @@ def preprocess(tokens: List[str], lemmatize: bool = True, lower: bool = False,
     return preprocessed_tokens
 
 
-def to_vecs(tokens=List[str], use_phrases: bool = False, w2v_model=gensim.Word2Vec) -> gensim.KeyedVectors:
-    if use_phrases:
-        bigram_transformer = Phrases(tokens)
-        model = w2v_model(bigram_transformer[tokens], size=100, window=10, min_count=1, workers=4)
-    else:
-        model = Word2Vec(tokens, size=300, window=5, min_count=1, workers=4, iter=15)
-    return model.wv
-
-
-def save_vecs(word_vectors: gensim.KeyedVectors, path="E:/AML4DHGermanVecs/test_vecs.kv"):
-    word_vectors.save(get_tmpfile(path))
-
-
-def load_vecs(path="E:/AML4DH-DATA/AML4DHGermanVecs/test_vecs.kv") -> gensim.KeyedVectors:
-    return gensim.KeyedVectors.load(path)
-
-
-def get_UMLS_dict(path='E:/AML4DH-DATA/UMLS/GER_MRCONSO.RRF'):
-    df = pd.read_csv(path, delimiter="|", header=None)
-    df.columns = ["CUI", "LAT", "TS", "LUI", "STT", "SUI", "ISPREF", "AUI", "SAUI", "SCUI", "SDUI", "SAB", "TTY",
-                  "CODE", "STR", "SRL", "SUPPRESS", "CVF", "NONE"]
-    dic = {row["STR"]: row["CUI"] for id, row in df.iterrows()}
-    rev_dic = defaultdict(list)
-    for key, value in dic.items():
-        rev_dic[value].append(key)
-    return dic, rev_dic
-
-
-def umls_code(umls_dict, token, delete_non_umls=False):
-    umls_code = umls_dict.get(token)
-    if umls_code == None:
-        if delete_non_umls:
-            return None
+class Embeddings:
+    @staticmethod
+    def calculate_vectors(tokens=List[str], use_phrases: bool = False, w2v_model=gensim.Word2Vec) -> gensim.KeyedVectors:
+        if use_phrases:
+            bigram_transformer = Phrases(tokens)
+            model = w2v_model(bigram_transformer[tokens], size=100, window=10, min_count=1, workers=4)
         else:
-            return token
-    else:
-        return umls_code
+            model = Word2Vec(tokens, size=300, window=5, min_count=1, workers=4, iter=15)
+        return model.wv
+
+    @staticmethod
+    def restrict_vectors(wordvectors, restricted_word_set):
+        new_vectors = []
+        new_vocab = {}
+        new_index2entity = []
+        new_vectors_norm = []
+        wordvectors.init_sims()
+        for i in range(len(wordvectors.vocab)):
+            word = wordvectors.index2entity[i]
+            vec = wordvectors.vectors[i]
+            vocab = wordvectors.vocab[word]
+            vec_norm = wordvectors.vectors_norm[i]
+            if word in restricted_word_set:
+                vocab.index = len(new_index2entity)
+                new_index2entity.append(word)
+                new_vocab[word] = vocab
+                new_vectors.append(vec)
+                new_vectors_norm.append(vec_norm)
+
+        wordvectors.vocab = new_vocab
+        wordvectors.vectors = np.array(new_vectors)
+        wordvectors.index2entity = new_index2entity
+        wordvectors.index2word = new_index2entity
+        wordvectors.vectors_norm = new_vectors_norm
+
+    @staticmethod
+    def save(word_vectors: gensim.KeyedVectors, path="E:/AML4DHGermanVecs/test_vecs.kv"):
+        word_vectors.save(get_tmpfile(path))
+
+    @staticmethod
+    def load(path="E:/AML4DHGermanVecs/test_vecs.kv") -> gensim.KeyedVectors:
+        return gensim.KeyedVectors.load(path)
 
 
-def un_umls(reverse_umls_dict, concept):
-    res = reverse_umls_dict.get(concept)
-    if res is None:
-        return concept
-    return res
+umls_mapper = UMLSMapper(from_file='E:/AML4DH-DATA/UMLS/GER_MRCONSO.RRF')
 
-def standardize_words(concept_dict, words):
-    standardized_tokens = []
-    for token in words:
-        mapping = concept_dict.get(token)
-        if mapping:
-            standardized_tokens.append(mapping[0])
-        else:
-            standardized_tokens.append(token)
-    return standardized_tokens
+# cpg_words = tokens_from_file(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-tokens.txt")
+#
+# # Preprocessing
+# cpg_words = umls_mapper.standardize_words(cpg_words)
+# cpg_words = umls_mapper.replace_with_UMLS(cpg_words)
+# cpg_words = preprocess(cpg_words)
+# print((cpg_words[:100]))
+#
+# # Vectorization
+# vecs = Embeddings.calculate_vectors([cpg_words], use_phrases=True)
+#
+#
+# Embeddings.save(vecs)
+#
+# vecs = Embeddings.load()
+# # Evaluation
+# for c, v in vecs.most_similar(umls_mapper.umls_dict["Zervix"]):
+#     print(umls_mapper.un_umls(c), v)
+# concept_vecs = umls_mapper.get_umls_vectors_only(vecs)
+#
+#
+# Embeddings.restrict_vectors(vecs, concept_vecs.keys())
+# Embeddings.save(vecs, path="E:/AML4DHGermanVecs/test_vecs_1.kv")
 
-def replace_with_UMLS(umls_dict, tokens):
-    return [umls_code(umls_dict, token) for token in tokens if umls_code(umls_dict, token)]
-
-
-pre_tokens = tokens_from_file(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-tokens.txt")
-umls, rev_umls = get_UMLS_dict()
-umls_mapper = UMLSMapper(umls_words=umls.keys())
-mapped_concepts = umls_mapper.search_all_term_sims(pre_tokens)
-print(len(mapped_concepts))
-
-
-tokens = standardize_words(mapped_concepts, pre_tokens)
-tokens = preprocess(
-    replace_with_UMLS(umls, tokens))
-print((tokens[:100]))
-vecs = to_vecs([tokens], use_phrases=True)
-for c, v in vecs.most_similar(umls["Zervix"]):
-    print(un_umls(rev_umls, c), v)
-save_vecs(vecs)
-
-# vecs = load_vecs()
-# print(vecs.most_similar("Tumor"))
+# vecs = Embeddings.load(path="E:/AML4DHGermanVecs/test_vecs_1.kv")
+# for c, v in vecs.most_similar(umls_mapper.umls_dict["Zervix"]):
+#     print(umls_mapper.un_umls(c), v)

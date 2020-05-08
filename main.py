@@ -11,9 +11,12 @@ from simstring.feature_extractor.word_ngram import WordNgramFeatureExtractor
 from simstring.measure.cosine import CosineMeasure
 from simstring.database.dict import DictDatabase
 from simstring.searcher import Searcher
+from whatlies.embedding import Embedding
+from whatlies.embeddingset import EmbeddingSet
 
 
 class UMLSMapper:
+    # https://www.ncbi.nlm.nih.gov/books/NBK9685/table/ch03.T.concept_names_and_sources_file_mr/
     def __init__(self, from_file=None, umls_words: Iterable[str] = None):
         # self.db = DictDatabase(WordNgramFeatureExtractor(2))
         self.db = DictDatabase(CharacterNgramFeatureExtractor(2))
@@ -24,7 +27,7 @@ class UMLSMapper:
         else:
             self.add_words_to_db(umls_words)
 
-    def load_UMLS_dict(self, path: str ='E:/AML4DH-DATA/UMLS/GER_MRCONSO.RRF'):
+    def load_UMLS_dict(self, path: str = 'E:/AML4DH-DATA/UMLS/GER_MRCONSO.RRF'):
         df = pd.read_csv(path, delimiter="|", header=None)
         df.columns = ["CUI", "LAT", "TS", "LUI", "STT", "SUI", "ISPREF", "AUI", "SAUI", "SCUI", "SDUI", "SAB", "TTY",
                       "CODE", "STR", "SRL", "SUPPRESS", "CVF", "NONE"]
@@ -68,11 +71,15 @@ class UMLSMapper:
         concept_vecs = {concept: vectors.get_vector(concept) for concept in medical_concepts}
         return concept_vecs
 
-    def un_umls(self, concept):
+    def un_umls(self, concept, single_return=False):
         res = self.umls_reverse_dict.get(concept)
         if res is None:
             return concept
-        return res
+
+        if single_return:
+            return res[0]
+        else:
+            return res
 
     def replace_UMLS(self, tokens: List[str]) -> List[str]:
         return [self.un_umls(token) for token in tokens if self.un_umls(token)]
@@ -132,7 +139,8 @@ def preprocess(tokens: List[str], lemmatize: bool = True, lower: bool = False,
 
 class Embeddings:
     @staticmethod
-    def calculate_vectors(tokens=List[str], use_phrases: bool = False, w2v_model=gensim.Word2Vec) -> gensim.KeyedVectors:
+    def calculate_vectors(tokens=List[str], use_phrases: bool = False,
+                          w2v_model=gensim.Word2Vec) -> gensim.KeyedVectors:
         if use_phrases:
             bigram_transformer = Phrases(tokens)
             model = w2v_model(bigram_transformer[tokens], size=100, window=10, min_count=1, workers=4)
@@ -200,6 +208,12 @@ umls_mapper = UMLSMapper(from_file='E:/AML4DH-DATA/UMLS/GER_MRCONSO.RRF')
 # Embeddings.restrict_vectors(vecs, concept_vecs.keys())
 # Embeddings.save(vecs, path="E:/AML4DHGermanVecs/test_vecs_1.kv")
 
-# vecs = Embeddings.load(path="E:/AML4DHGermanVecs/test_vecs_1.kv")
-# for c, v in vecs.most_similar(umls_mapper.umls_dict["Zervix"]):
-#     print(umls_mapper.un_umls(c), v)
+vecs = Embeddings.load(path="E:/AML4DHGermanVecs/test_vecs_1.kv")
+for c, v in vecs.most_similar(umls_mapper.umls_dict["Zervix"]):
+    print(umls_mapper.un_umls(c, single_return=True), v)
+
+# print([(umls_mapper.un_umls(c), Embedding(umls_mapper.un_umls(c), vecs[c])) for c in vecs.vocab])
+emb = EmbeddingSet({umls_mapper.un_umls(c, single_return=True): Embedding(umls_mapper.un_umls(c, single_return=True), vecs[c]) for c in vecs.vocab})
+# emb = EmbeddingSet({c: Embedding(c, vecs[c]) for c in vecs.vocab})
+
+emb.plot_interactive("Fibroblasten","Fremdkörper")

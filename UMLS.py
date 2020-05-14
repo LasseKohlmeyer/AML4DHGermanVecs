@@ -16,21 +16,23 @@ class UMLSMapper:
     # https://www.ncbi.nlm.nih.gov/books/NBK9685/table/ch03.T.concept_names_and_sources_file_mr/
     def __init__(self, from_dir=None, umls_words: Iterable[str] = None):
         # self.db = DictDatabase(WordNgramFeatureExtractor(2))
+        print("initialize UMLSMapper...")
         self.db = DictDatabase(CharacterNgramFeatureExtractor(2))
 
         if from_dir:
-            self.umls_dict, self.umls_reverse_dict = self.load_umls_dict(directory=from_dir)
+            self.directory = from_dir
+            self.umls_dict, self.umls_reverse_dict = self.load_umls_dict()
             self.add_words_to_db(self.umls_dict.keys())
         else:
             self.add_words_to_db(umls_words)
 
-    def load_umls_dict(self, directory: str):
-        path = os.path.join(directory, "GER_MRCONSO.RRF")
+    def load_umls_dict(self):
+        path = os.path.join(self.directory, "GER_MRCONSO.RRF")
         df = pd.read_csv(path, delimiter="|", header=None)
         df.columns = ["CUI", "LAT", "TS", "LUI", "STT", "SUI", "ISPREF", "AUI", "SAUI", "SCUI", "SDUI", "SAB", "TTY",
                       "CODE", "STR", "SRL", "SUPPRESS", "CVF", "NONE"]
         df = df.drop(columns=['NONE'])
-        dic = {row["STR"]: row["CUI"] for id, row in df.iterrows()}
+        dic = {row["STR"]: row["CUI"] for i, row in df.iterrows()}
         rev_dic = defaultdict(list)
         for key, value in dic.items():
             rev_dic[value].append(key)
@@ -84,7 +86,7 @@ class UMLSMapper:
         concept_vecs = {concept: vectors.get_vector(concept) for concept in medical_concepts}
         return concept_vecs
 
-    def un_umls(self, concept, single_return=False):
+    def un_umls(self, concept, single_return=True):
         res = self.umls_reverse_dict.get(concept)
         if res is None:
             return concept
@@ -107,16 +109,17 @@ class UMLSMapper:
         else:
             return umls_code
 
-    def replace_with_UMLS(self, tokens: List[str], delete_non_umls=False) -> List[str]:
+    def replace_with_umls(self, tokens: List[str], delete_non_umls=False) -> List[str]:
         return [self.umls_code(token, delete_non_umls) for token in tokens if self.umls_code(token, delete_non_umls)]
 
-    def replace_documents_with_UMLS(self, documents: List[List[str]], delete_non_umls=False) -> List[List[str]]:
+    def replace_documents_with_umls(self, documents: List[List[str]], delete_non_umls=False) -> List[List[str]]:
         return [[self.umls_code(token, delete_non_umls) for token in tokens if self.umls_code(token, delete_non_umls)]
                 for tokens in documents]
 
 
 class UMLSEvaluator:
     def __init__(self, vectors: gensim.models.KeyedVectors, from_dir="E:/AML4DH-DATA/UMLS"):
+        print("initialize UMLSEvaluator...")
         self.vocab = vectors.vocab
         self.concept2category, self.category2concepts = self.load_umls_semantics(directory=from_dir)
 

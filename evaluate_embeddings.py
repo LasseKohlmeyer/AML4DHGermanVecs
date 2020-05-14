@@ -1,5 +1,5 @@
 import gensim
-from whatlies import EmbeddingSet, Embedding
+from tqdm import tqdm
 
 from UMLS import UMLSMapper, UMLSEvaluator
 from embeddings import Embeddings
@@ -43,11 +43,9 @@ class Benchmark:
                     count += 1
             return s / count
 
-    def category_benchmark(self):
-        choosen_category = "Nucleotide Sequence"
+    def category_benchmark(self, choosen_category="Nucleotide Sequence"):
         other_categories = self.umls_evaluator.category2concepts.keys()
         p1 = self.pairwise_cosine(self.umls_evaluator.category2concepts[choosen_category])
-        print(p1)
 
         p2s = []
         for other_category in other_categories:
@@ -55,15 +53,26 @@ class Benchmark:
                 continue
             choosen_concepts = self.umls_evaluator.category2concepts[choosen_category]
             other_concepts = self.umls_evaluator.category2concepts[other_category]
-            if len(choosen_concepts) == 0 or len(other_concepts) == 0:
+            if len(choosen_concepts) <= 1 or len(other_concepts) <= 1:
                 continue
             p2 = self.pairwise_cosine(choosen_concepts, other_concepts)
             p2s.append(p2)
 
         avg_p2 = sum(p2s) / len(p2s)
-        print(p2s)
-        print(p1, avg_p2, p1 - avg_p2)
+        # print(p2s)
+        print(choosen_category, p1, avg_p2, p1 - avg_p2)
         return p1 - avg_p2
+
+    def all_categories_benchmark(self):
+
+        distances = []
+        for category in tqdm(self.umls_evaluator.category2concepts.keys()):
+            distance_within_without = self.category_benchmark(category)
+            distances.append(distance_within_without)
+
+        benchmark_value = sum(distances)/len(distances)
+        print(benchmark_value)
+        return benchmark_value
 
 
 def analogies(vectors, start, minus, plus, umls: UMLSMapper):
@@ -84,34 +93,29 @@ def similarities(vectors, word, umls):
 def main():
     umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
     vecs = Embeddings.load(path="E:/AML4DHGermanVecs/test_vecs_1.kv")
+    evaluator = UMLSEvaluator(from_dir='E:/AML4DH-DATA/UMLS', vectors=vecs)
 
-    for c, v in analogies(vecs, "Asthma", "Lunge", "Herz", umls=umls_mapper):
-        print(umls_mapper.un_umls(c, single_return=True), v)
-
-    for c, v in similarities(vecs, "Hepatitis", umls=umls_mapper):
-        print(umls_mapper.un_umls(c, single_return=True), v)
-
-    for c, v in similarities(vecs, "Cisplatin", umls=umls_mapper):
-        print(umls_mapper.un_umls(c, single_return=True), v)
+    # for c, v in analogies(vecs, "Asthma", "Lunge", "Herz", umls=umls_mapper):
+    #     print(umls_mapper.un_umls(c), v)
+    #
+    # for c, v in similarities(vecs, "Hepatitis", umls=umls_mapper):
+    #     print(umls_mapper.un_umls(c), v)
+    #
+    # for c, v in similarities(vecs, "Cisplatin", umls=umls_mapper):
+    #     print(umls_mapper.un_umls(c), v)
 
     # print([(umls_mapper.un_umls(c), Embedding(umls_mapper.un_umls(c), vecs[c])) for c in vecs.vocab])
-    evaluator = UMLSEvaluator(vectors=vecs)
+
     benchmark = Benchmark(vecs, umls_mapper, evaluator)
 
-    benchmark.category_benchmark()
+    benchmark.all_categories_benchmark()
+    # benchmark.category_benchmark()
 
-    p1 = benchmark.pairwise_cosine(evaluator.category2concepts["Medical Device"])
-    print(p1)
-    p2 = benchmark.pairwise_cosine(evaluator.category2concepts["Medical Device"],
-                                   evaluator.category2concepts["Health Care Related Organization"])
-    print(p2)
-
-    emb = EmbeddingSet(
-        {umls_mapper.un_umls(c, single_return=True): Embedding(umls_mapper.un_umls(c, single_return=True), vecs[c]) for
-         c in vecs.vocab})
-    # emb = EmbeddingSet({c: Embedding(c, vecs[c]) for c in vecs.vocab})
-
-    emb.plot_interactive("Fibroblasten", "Fremdkörper")
+    # emb = EmbeddingSet( {umls_mapper.un_umls(c, single_return=True): Embedding(umls_mapper.un_umls(c,
+    # single_return=True), vecs[c]) for c in vecs.vocab}) # emb = EmbeddingSet({c: Embedding(c, vecs[c]) for c in
+    # vecs.vocab})
+    #
+    # emb.plot_interactive("Fibroblasten", "Fremdkörper")
 
     # replace multi words
 

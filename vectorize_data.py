@@ -43,7 +43,7 @@ def preprocess(tokens: List[str] = None, documents: List[List[str]] = None, lemm
                     if (not remove_stopwords or not token.is_stop) and (
                             not remove_punctuation or token.is_alpha) and token.pos_ in pos_filter:
                         preprocessed_tokens.append(token_representation(token))
-        return preprocessed_tokens
+        return [preprocessed_tokens]
 
     if documents:
         documents = [' '.join(doc) for doc in documents]
@@ -84,12 +84,12 @@ def main():
 
     # Preprocessing
     # cpg_words = umls_mapper.standardize_words(cpg_words)
-    # cpg_words = umls_mapper.replace_with_UMLS(cpg_words)
+    # cpg_words = umls_mapper.replace_with_umls(cpg_words)
     # cpg_words = preprocess(cpg_words)
     # print((cpg_words[:100]))
 
     # cpq_sentences = umls_mapper.standardize_documents(cpq_sentences)
-    cpq_sentences = umls_mapper.replace_documents_with_UMLS(cpq_sentences)
+    cpq_sentences = umls_mapper.replace_documents_with_umls(cpq_sentences)
     cpq_sentences = preprocess(documents=cpq_sentences, lemmatize=True, remove_stopwords=True)
     print((cpq_sentences[:10]))
 

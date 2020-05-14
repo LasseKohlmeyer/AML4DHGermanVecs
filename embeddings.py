@@ -1,6 +1,6 @@
 from typing import List
 
-from gensim import models as gensim
+import gensim
 from gensim.test.utils import get_tmpfile
 from gensim.models import Phrases, Word2Vec
 import numpy as np
@@ -9,7 +9,7 @@ import numpy as np
 class Embeddings:
     @staticmethod
     def calculate_vectors(tokens=List[str], use_phrases: bool = False,
-                          w2v_model=gensim.Word2Vec, dim: int = 300, window=10) -> gensim.KeyedVectors:
+                          w2v_model=gensim.models.Word2Vec, dim: int = 300, window=10) -> gensim.models.KeyedVectors:
         seed = 42
         if use_phrases:
             bigram_transformer = Phrases(tokens)
@@ -19,7 +19,7 @@ class Embeddings:
         return model.wv
 
     @staticmethod
-    def restrict_vectors(wordvectors, restricted_word_set):
+    def restrict_vectors(wordvectors: gensim.models.KeyedVectors, restricted_word_set):
         new_vectors = []
         new_vocab = {}
         new_index2entity = []
@@ -44,9 +44,10 @@ class Embeddings:
         wordvectors.vectors_norm = new_vectors_norm
 
     @staticmethod
-    def save(word_vectors: gensim.KeyedVectors, path="E:/AML4DHGermanVecs/test_vecs.kv"):
+    def save(word_vectors: gensim.models.KeyedVectors, path="E:/AML4DHGermanVecs/test_vecs.kv"):
         word_vectors.save(get_tmpfile(path))
 
     @staticmethod
-    def load(path="E:/AML4DHGermanVecs/test_vecs.kv") -> gensim.KeyedVectors:
-        return gensim.KeyedVectors.load(path)
+    def load(path="E:/AML4DHGermanVecs/test_vecs.kv") -> gensim.models.KeyedVectors:
+        print("load embedding...")
+        return gensim.models.KeyedVectors.load(path)

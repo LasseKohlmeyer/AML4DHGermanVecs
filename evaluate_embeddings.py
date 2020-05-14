@@ -30,6 +30,7 @@ class Benchmark:
                             c = -c
                         s += c
                         count += 1
+
             return s / count
         else:
             s = 0
@@ -45,22 +46,25 @@ class Benchmark:
 
     def category_benchmark(self, choosen_category="Nucleotide Sequence"):
         other_categories = self.umls_evaluator.category2concepts.keys()
-        p1 = self.pairwise_cosine(self.umls_evaluator.category2concepts[choosen_category])
+        choosen_concepts = self.umls_evaluator.category2concepts[choosen_category]
+        if len(choosen_concepts) <= 1:
+            return 0
+        p1 = self.pairwise_cosine(choosen_concepts)
 
         p2s = []
         for other_category in other_categories:
             if other_category == choosen_category:
                 continue
-            choosen_concepts = self.umls_evaluator.category2concepts[choosen_category]
+
             other_concepts = self.umls_evaluator.category2concepts[other_category]
-            if len(choosen_concepts) <= 1 or len(other_concepts) <= 1:
+            if len(choosen_concepts) == 0 or len(other_concepts) == 0:
                 continue
             p2 = self.pairwise_cosine(choosen_concepts, other_concepts)
             p2s.append(p2)
 
         avg_p2 = sum(p2s) / len(p2s)
         # print(p2s)
-        print(choosen_category, p1, avg_p2, p1 - avg_p2)
+        print(f'{choosen_category}: within {p1}, out {avg_p2}, distance {p1 - avg_p2}')
         return p1 - avg_p2
 
     def all_categories_benchmark(self):

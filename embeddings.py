@@ -44,10 +44,10 @@ class Embeddings:
         wordvectors.vectors_norm = new_vectors_norm
 
     @staticmethod
-    def save(word_vectors: gensim.models.KeyedVectors, path="E:/AML4DHGermanVecs/test_vecs.kv"):
+    def save(word_vectors: gensim.models.KeyedVectors, path: str):
         word_vectors.save(get_tmpfile(path))
 
     @staticmethod
-    def load(path="E:/AML4DHGermanVecs/test_vecs.kv") -> gensim.models.KeyedVectors:
+    def load(path: str) -> gensim.models.KeyedVectors:
         print("load embedding...")
         return gensim.models.KeyedVectors.load(path)

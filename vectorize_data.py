@@ -98,7 +98,12 @@ def main():
     # # Vectorization
     # vecs = Embeddings.calculate_vectors([cpg_words], use_phrases=False)
     vecs = Embeddings.calculate_vectors(cpq_sentences, use_phrases=False)
-    Embeddings.save(vecs)
+    file_name = "test_vecs"
+    Embeddings.save(vecs, path=f"E:/AML4DHGermanVecs/{file_name}_all.kv")
+
+    concept_vecs = umls_mapper.get_umls_vectors_only(vecs)
+    Embeddings.restrict_vectors(vecs, concept_vecs.keys())
+    Embeddings.save(vecs, path=f"E:/AML4DHGermanVecs/{file_name}.kv")
 
 
 if __name__ == "__main__":

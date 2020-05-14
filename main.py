@@ -304,7 +304,7 @@ umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
 # Embeddings.restrict_vectors(vecs, concept_vecs.keys())
 # Embeddings.save(vecs, path="E:/AML4DHGermanVecs/test_vecs_1.kv")
 
-vecs = Embeddings.load(path="E:/AML4DHGermanVecs/test_vecs_1.kv")
+vecs = Embeddings.load(path="/data/test_vecs_1.kv")
 
 def analogies(vectors, start, minus, plus, umls: UMLSMapper):
     if umls:

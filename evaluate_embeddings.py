@@ -96,9 +96,16 @@ def similarities(vectors, word, umls):
 
 def main():
     umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
-    vecs = Embeddings.load(path="E:/AML4DHGermanVecs/test_vecs_1.kv")
+    vecs = Embeddings.load(path="data/test_vecs.kv")
     evaluator = UMLSEvaluator(from_dir='E:/AML4DH-DATA/UMLS', vectors=vecs)
 
+    # for c, v in vecs.most_similar("Cisplatin"):
+    #     print(umls_mapper.un_umls(c), v)
+    #
+    #
+    # # for c, v in vecs.most_similar(umls_mapper.umls_dict["Cisplatin"]):
+    # #     print(umls_mapper.un_umls(c), v)
+    #
     # for c, v in analogies(vecs, "Asthma", "Lunge", "Herz", umls=umls_mapper):
     #     print(umls_mapper.un_umls(c), v)
     #

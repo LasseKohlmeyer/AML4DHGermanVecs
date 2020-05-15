@@ -1,3 +1,5 @@
+import math
+
 import gensim
 from tqdm import tqdm
 
@@ -70,13 +72,41 @@ class Benchmark:
     def all_categories_benchmark(self):
 
         distances = []
+        cat = ""
         for category in tqdm(self.umls_evaluator.category2concepts.keys()):
             distance_within_without = self.category_benchmark(category)
             distances.append(distance_within_without)
 
-        benchmark_value = sum(distances)/len(distances)
+        benchmark_value = sum(distances) / len(distances)
         print(benchmark_value)
         return benchmark_value
+
+    def mcsm_umls(self, category, k=40):
+        def category_true(concept, category):
+            if category in self.umls_evaluator.concept2category[concept]:
+                return 1
+            else:
+                return 0
+
+        v_t = self.umls_evaluator.category2concepts[category]
+        if len(v_t) == 0:
+            return 0
+
+        sigma = 0
+        for v in v_t:
+            for i in range(0, k):
+                neighbors = self.embeddings.most_similar(v, topn=k)
+                v_i = neighbors[i][0]
+                sigma += category_true(v_i, category) / math.log((i + 1) + 1, 2)
+        return sigma / len(v_t)
+
+    def choi_benchmark(self):
+        print(self.mcsm_umls("Pharmacologic Substance"))
+        print(self.mcsm_umls("Disease or Syndrome"))
+        print(self.mcsm_umls("Neoplastic Process"))
+        print(self.mcsm_umls("Clinical Drug"))
+        print(self.mcsm_umls("Finding"))
+        print(self.mcsm_umls("Injury or Poisoning"))
 
 
 def analogies(vectors, start, minus, plus, umls: UMLSMapper):
@@ -96,7 +126,7 @@ def similarities(vectors, word, umls):
 
 def main():
     umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
-    vecs = Embeddings.load(path="data/test_vecs.kv")
+    vecs = Embeddings.load(path="data/no_prep_vecs.kv")
     evaluator = UMLSEvaluator(from_dir='E:/AML4DH-DATA/UMLS', vectors=vecs)
 
     # for c, v in vecs.most_similar("Cisplatin"):
@@ -118,8 +148,8 @@ def main():
     # print([(umls_mapper.un_umls(c), Embedding(umls_mapper.un_umls(c), vecs[c])) for c in vecs.vocab])
 
     benchmark = Benchmark(vecs, umls_mapper, evaluator)
-
-    benchmark.all_categories_benchmark()
+    benchmark.choi_benchmark()
+    # benchmark.all_categories_benchmark()
     # benchmark.category_benchmark()
 
     # emb = EmbeddingSet( {umls_mapper.un_umls(c, single_return=True): Embedding(umls_mapper.un_umls(c,

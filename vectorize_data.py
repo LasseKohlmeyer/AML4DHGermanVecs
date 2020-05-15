@@ -90,7 +90,7 @@ def main():
 
     # cpq_sentences = umls_mapper.standardize_documents(cpq_sentences)
     cpq_sentences = umls_mapper.replace_documents_with_umls(cpq_sentences)
-    cpq_sentences = preprocess(documents=cpq_sentences, lemmatize=True, remove_stopwords=True)
+    # cpq_sentences = preprocess(documents=cpq_sentences, lemmatize=True, remove_stopwords=True)
     print((cpq_sentences[:10]))
 
 
@@ -98,7 +98,7 @@ def main():
     # # Vectorization
     # vecs = Embeddings.calculate_vectors([cpg_words], use_phrases=False)
     vecs = Embeddings.calculate_vectors(cpq_sentences, use_phrases=False)
-    file_name = "test_vecs"
+    file_name = "no_prep_vecs"
     Embeddings.save(vecs, path=f"E:/AML4DHGermanVecs/{file_name}_all.kv")
 
     concept_vecs = umls_mapper.get_umls_vectors_only(vecs)

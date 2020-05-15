@@ -1,4 +1,5 @@
 import math
+from typing import Tuple
 
 import gensim
 from tqdm import tqdm
@@ -81,7 +82,7 @@ class Benchmark:
         print(benchmark_value)
         return benchmark_value
 
-    def mcsm_umls(self, category, k=40):
+    def mcsm(self, category, k=40):
         def category_true(concept, category):
             if category in self.umls_evaluator.concept2category[concept]:
                 return 1
@@ -100,13 +101,31 @@ class Benchmark:
                 sigma += category_true(v_i, category) / math.log((i + 1) + 1, 2)
         return sigma / len(v_t)
 
+    def mrm(self, r, seed_pair: Tuple[str, str], k=40):
+        def relation_true(concepts, relation):
+            for concept in concepts:
+                if concept in relation:
+                    return 1
+            return 0
+
+        s = self.embeddings.get_vector(seed_pair[0])-self.embeddings.get_vector(seed_pair[1])
+        # todo: choose v_star correctly and add ndf_rt source
+        v_star = self.umls_evaluator.category2concepts["category"]
+        sigma = 0
+        for v in v_star:
+            union = {}
+            for i in range(0, k):
+                union.update(self.embeddings.get_vector(v)-self.embeddings.get_vector(s))
+            sigma += relation_true(union, r)
+        return sigma / len(v_star)
+
     def choi_benchmark(self):
-        print(self.mcsm_umls("Pharmacologic Substance"))
-        print(self.mcsm_umls("Disease or Syndrome"))
-        print(self.mcsm_umls("Neoplastic Process"))
-        print(self.mcsm_umls("Clinical Drug"))
-        print(self.mcsm_umls("Finding"))
-        print(self.mcsm_umls("Injury or Poisoning"))
+        print(self.mcsm("Pharmacologic Substance"))
+        print(self.mcsm("Disease or Syndrome"))
+        print(self.mcsm("Neoplastic Process"))
+        print(self.mcsm("Clinical Drug"))
+        print(self.mcsm("Finding"))
+        print(self.mcsm("Injury or Poisoning"))
 
 
 def analogies(vectors, start, minus, plus, umls: UMLSMapper):

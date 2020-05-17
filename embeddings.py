@@ -4,6 +4,7 @@ import gensim
 from gensim.test.utils import get_tmpfile
 from gensim.models import Phrases, Word2Vec
 import numpy as np
+from tqdm import tqdm
 
 
 class Embeddings:
@@ -25,7 +26,7 @@ class Embeddings:
         new_index2entity = []
         new_vectors_norm = []
         wordvectors.init_sims()
-        for i in range(len(wordvectors.vocab)):
+        for i in tqdm(range(len(wordvectors.vocab)), desc="Vector restriction", total=len(wordvectors.vocab)):
             word = wordvectors.index2entity[i]
             vec = wordvectors.vectors[i]
             vocab = wordvectors.vocab[word]
@@ -46,6 +47,13 @@ class Embeddings:
     @staticmethod
     def save(word_vectors: gensim.models.KeyedVectors, path: str):
         word_vectors.save(get_tmpfile(path))
+
+    @staticmethod
+    def save_medical(word_vectors: gensim.models.KeyedVectors, name: str, umls_mapping):
+        Embeddings.save(word_vectors, path=f"E:/AML4DHGermanVecs/data{name}_all.kv")
+        concept_vecs = umls_mapping.get_umls_vectors_only(word_vectors)
+        Embeddings.restrict_vectors(word_vectors, concept_vecs.keys())
+        Embeddings.save(word_vectors, path=f"E:/AML4DHGermanVecs/data{name}.kv")
 
     @staticmethod
     def load(path: str) -> gensim.models.KeyedVectors:

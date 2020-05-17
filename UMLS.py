@@ -82,7 +82,6 @@ class UMLSMapper:
 
     def get_umls_vectors_only(self, vectors: gensim.models.KeyedVectors):
         medical_concepts = [word for word in vectors.index2word if word in self.umls_dict.values()]
-        print(len(medical_concepts), medical_concepts[:10])
         concept_vecs = {concept: vectors.get_vector(concept) for concept in medical_concepts}
         return concept_vecs
 

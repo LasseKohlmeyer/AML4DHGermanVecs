@@ -120,12 +120,16 @@ class Benchmark:
         return sigma / len(v_star)
 
     def choi_benchmark(self):
-        print(self.mcsm("Pharmacologic Substance"))
-        print(self.mcsm("Disease or Syndrome"))
-        print(self.mcsm("Neoplastic Process"))
-        print(self.mcsm("Clinical Drug"))
-        print(self.mcsm("Finding"))
-        print(self.mcsm("Injury or Poisoning"))
+        categories = ['Pharmacologic Substance',
+                      'Disease or Syndrome,'
+                      'Neoplastic Process',
+                      'Clinical Drug',
+                      'Finding',
+                      'Injury or Poisoning'
+                      ]
+
+        for category in categories:
+            print(f'{category}: {self.mcsm(category)}')
 
 
 def analogies(vectors, start, minus, plus, umls: UMLSMapper):

@@ -50,10 +50,10 @@ class Embeddings:
 
     @staticmethod
     def save_medical(word_vectors: gensim.models.KeyedVectors, name: str, umls_mapping):
-        Embeddings.save(word_vectors, path=f"E:/AML4DHGermanVecs/data{name}_all.kv")
+        Embeddings.save(word_vectors, path=f"E:/AML4DHGermanVecs/data/{name}_all.kv")
         concept_vecs = umls_mapping.get_umls_vectors_only(word_vectors)
         Embeddings.restrict_vectors(word_vectors, concept_vecs.keys())
-        Embeddings.save(word_vectors, path=f"E:/AML4DHGermanVecs/data{name}.kv")
+        Embeddings.save(word_vectors, path=f"E:/AML4DHGermanVecs/data/{name}.kv")
 
     @staticmethod
     def load(path: str) -> gensim.models.KeyedVectors:

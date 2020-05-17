@@ -47,7 +47,7 @@ class Benchmark:
                     count += 1
             return s / count
 
-    def category_benchmark(self, choosen_category="Nucleotide Sequence"):
+    def category_benchmark(self, choosen_category):
         other_categories = self.umls_evaluator.category2concepts.keys()
         choosen_concepts = self.umls_evaluator.category2concepts[choosen_category]
         if len(choosen_concepts) <= 1:
@@ -121,7 +121,7 @@ class Benchmark:
 
     def choi_benchmark(self):
         categories = ['Pharmacologic Substance',
-                      'Disease or Syndrome,'
+                      'Disease or Syndrome',
                       'Neoplastic Process',
                       'Clinical Drug',
                       'Finding',
@@ -173,7 +173,7 @@ def main():
     benchmark = Benchmark(vecs, umls_mapper, evaluator)
     benchmark.choi_benchmark()
     # benchmark.all_categories_benchmark()
-    # benchmark.category_benchmark()
+    # benchmark.category_benchmark("Nucleotide Sequence")
 
     # emb = EmbeddingSet( {umls_mapper.un_umls(c, single_return=True): Embedding(umls_mapper.un_umls(c,
     # single_return=True), vecs[c]) for c in vecs.vocab}) # emb = EmbeddingSet({c: Embedding(c, vecs[c]) for c in

@@ -12,11 +12,14 @@ class Embeddings:
     def calculate_vectors(tokens=List[str], use_phrases: bool = False,
                           w2v_model=gensim.models.Word2Vec, dim: int = 300, window=10) -> gensim.models.KeyedVectors:
         seed = 42
+        workers = 12
+        epochs = 15
+        min_count = 1
         if use_phrases:
             bigram_transformer = Phrases(tokens)
-            model = w2v_model(bigram_transformer[tokens], size=dim, window=window, min_count=1, workers=4, seed=seed)
+            model = w2v_model(bigram_transformer[tokens], size=dim, window=window, min_count=min_count, workers=workers, seed=seed, iter=epochs)
         else:
-            model = Word2Vec(tokens, size=dim, window=window, min_count=1, workers=4, iter=15, seed=seed)
+            model = Word2Vec(tokens, size=dim, window=window, min_count=min_count, workers=workers, iter=epochs, seed=seed)
         return model.wv
 
     @staticmethod

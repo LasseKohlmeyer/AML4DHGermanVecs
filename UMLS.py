@@ -10,6 +10,8 @@ from simstring.searcher import Searcher
 from tqdm import tqdm
 import pandas as pd
 from itertools import chain
+import spacy
+from spacy.matcher import PhraseMatcher
 
 
 class UMLSMapper:
@@ -111,9 +113,43 @@ class UMLSMapper:
     def replace_with_umls(self, tokens: List[str], delete_non_umls=False) -> List[str]:
         return [self.umls_code(token, delete_non_umls) for token in tokens if self.umls_code(token, delete_non_umls)]
 
-    def replace_documents_with_umls(self, documents: List[List[str]], delete_non_umls=False) -> List[List[str]]:
+    def replace_documents_with_umls(self, documents: List[str], delete_non_umls=False) -> List[List[str]]:
+        tokenized_documents = [sentence.split() for sentence in documents]
         return [[self.umls_code(token, delete_non_umls) for token in tokens if self.umls_code(token, delete_non_umls)]
-                for tokens in documents]
+                for tokens in tokenized_documents]
+
+    def replace_documents_with_spacy(self, documents: List[str]) -> List[List[str]]:
+        nlp = spacy.load('de_core_news_sm')
+        matcher = PhraseMatcher(nlp.vocab)
+        terms = self.umls_dict.keys()
+        doc_pipe = list(nlp.pipe(documents, disable=["tagger", "parser", "ner"]))
+        # Only run nlp.make_doc to speed things up
+        patterns = [nlp.make_doc(term) for term in terms]
+        matcher.add("TerminologyList", None, *patterns)
+        replaced_docs = []
+
+        for doc in tqdm(doc_pipe, desc="Replace with concepts", total=len(documents)):
+            text_doc = doc.text
+            matches = matcher(doc)
+            concepts = []
+            for match_id, start, end in matches:
+                span = doc[start:end]
+                concepts.append(span.text)
+
+            concepts.sort(key=lambda s: len(s), reverse=True)
+            for concept in concepts:
+                text_doc = text_doc.replace(concept, self.umls_dict[concept])
+
+
+            replaced_docs.append(text_doc)
+
+            # tokens = [token for token in text_doc.split()]
+            # replaced_docs.append(tokens)
+
+        doc_pipe = list(nlp.pipe(replaced_docs, disable=["tagger", "parser", "ner"]))
+        replaced_docs = [[token.text for token in doc] for doc in tqdm(doc_pipe, desc="Tokenize", total=len(documents)) ]
+
+        return replaced_docs
 
 
 class UMLSEvaluator:

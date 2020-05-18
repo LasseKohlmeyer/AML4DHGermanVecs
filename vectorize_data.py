@@ -76,9 +76,7 @@ def main():
     umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
     # load sentences
     cpq_sentences = lines_from_file(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt")
-
-    # tokenization
-    cpq_sentences = [sentence.split() for sentence in cpq_sentences]
+    print((cpq_sentences[:10]))
 
     # cpg_words = lines_from_file(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-tokens.txt")
 
@@ -89,7 +87,9 @@ def main():
     # print((cpg_words[:100]))
 
     # cpq_sentences = umls_mapper.standardize_documents(cpq_sentences)
-    cpq_sentences = umls_mapper.replace_documents_with_umls(cpq_sentences)
+    # cpq_sentences = umls_mapper.replace_documents_with_umls(cpq_sentences)
+    cpq_sentences = umls_mapper.replace_documents_with_spacy(cpq_sentences)
+    # cpq_sentences = umls_mapper.replace_documents_with_umls_smart(cpq_sentences)
     # cpq_sentences = preprocess(documents=cpq_sentences, lemmatize=True, remove_stopwords=True)
     print((cpq_sentences[:10]))
 

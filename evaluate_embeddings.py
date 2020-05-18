@@ -73,8 +73,7 @@ class Benchmark:
     def all_categories_benchmark(self):
 
         distances = []
-        cat = ""
-        for category in tqdm(self.umls_evaluator.category2concepts.keys()):
+        for category in (self.umls_evaluator.category2concepts.keys()):
             distance_within_without = self.category_benchmark(category)
             distances.append(distance_within_without)
 

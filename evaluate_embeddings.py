@@ -70,6 +70,7 @@ class Benchmark:
                     sigma_bi += self.cosine(c1=datapoint, c2=other_reference_point)
                 sigma_bi = sigma_bi / len(other_cluster)
                 distances.append(sigma_bi)
+            # return sum(distances)/len(distances) # alternative?
             return min(distances)
 
         cluster = self.umls_evaluator.category2concepts[category]
@@ -104,7 +105,7 @@ class Benchmark:
             s_is.append(mean_category_s_i)
             categories.set_description(f"{category}: {mean_category_s_i:.4f}")
             categories.refresh()  # to show immediately the update
-        return max(s_is)
+        return max(s_is) # min, avg?
 
     def category_benchmark(self, choosen_category):
         other_categories = self.umls_evaluator.category2concepts.keys()

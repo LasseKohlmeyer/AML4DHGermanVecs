@@ -14,21 +14,26 @@ class Benchmark:
         self.umls_mapper = umls_mapper
         self.umls_evaluator = umls_evaluator
 
-    def pairwise_cosine(self, concepts1, concepts2=None):
-        def cosine(word1=None, word2=None, c1=None, c2=None):
-            if word1:
-                return self.embeddings.similarity(self.umls_mapper.umls_dict[word1], self.umls_mapper.umls_dict[word2])
-            else:
-                return self.embeddings.similarity(c1, c2)
+    def cosine(self, word1=None, word2=None, c1=None, c2=None):
 
+        if word1:
+            cos = self.embeddings.similarity(self.umls_mapper.umls_dict[word1], self.umls_mapper.umls_dict[word2])
+        else:
+            cos = self.embeddings.similarity(c1, c2)
+        if cos < 0:
+            return -cos
+        else:
+            return cos
+
+    def pairwise_cosine(self, concepts1, concepts2=None):
         if concepts2 is None:
             concepts2 = concepts1
             s = 0
-            count = 0
+            count = -1
             for i, concept1 in enumerate(concepts1):
                 for j, concept2 in enumerate(concepts2):
                     if j > i:
-                        c = cosine(c1=concept1, c2=concept2)
+                        c = self.cosine(c1=concept1, c2=concept2)
                         if c < 0:
                             c = -c
                         s += c
@@ -40,18 +45,72 @@ class Benchmark:
             count = 0
             for i, concept1 in enumerate(concepts1):
                 for j, concept2 in enumerate(concepts2):
-                    c = cosine(c1=concept1, c2=concept2)
+                    c = self.cosine(c1=concept1, c2=concept2)
                     if c < 0:
                         c = -c
                     s += c
                     count += 1
             return s / count
 
+    def silhouette(self, term, category):
+        def mean_between_distance(datapoint, same_cluster):
+            sigma_ai = 0
+            for reference_point in same_cluster:
+                if datapoint == reference_point:
+                    continue
+                sigma_ai += self.cosine(c1=datapoint, c2=reference_point)
+
+            return sigma_ai / (len(same_cluster) - 1)
+
+        def smallest_mean_out_distance(datapoint, other_clusters):
+            distances = []
+            for other_cluster in other_clusters:
+                sigma_bi = 0
+                for other_reference_point in other_cluster:
+                    sigma_bi += self.cosine(c1=datapoint, c2=other_reference_point)
+                sigma_bi = sigma_bi / len(other_cluster)
+                distances.append(sigma_bi)
+            return min(distances)
+
+        cluster = self.umls_evaluator.category2concepts[category]
+        other_cluster_names = set(self.umls_evaluator.category2concepts.keys()).difference(category)
+        other_clusters = [self.umls_evaluator.category2concepts[category] for category in other_cluster_names]
+
+        a_i = mean_between_distance(term, cluster)
+        b_i = smallest_mean_out_distance(term, other_clusters)
+
+        if a_i < b_i:
+            s_i = 1 - a_i / b_i
+        elif a_i == b_i:
+            s_i = 0
+        else:
+            s_i = b_i / a_i - 1
+
+        return s_i
+
+    def silhouette_coefficient(self):
+        s_is = []
+        categories = tqdm(self.umls_evaluator.category2concepts.keys())
+        for category in categories:
+            category_concepts = self.umls_evaluator.category2concepts[category]
+            if len(category_concepts) < 2:
+                continue
+
+            category_s_is = []
+            for term in category_concepts:
+                category_s_is.append(self.silhouette(term, category))
+
+            mean_category_s_i = sum(category_s_is) / len(category_s_is)
+            s_is.append(mean_category_s_i)
+            categories.set_description(f"{category}: {mean_category_s_i:.4f}")
+            categories.refresh()  # to show immediately the update
+        return max(s_is)
+
     def category_benchmark(self, choosen_category):
         other_categories = self.umls_evaluator.category2concepts.keys()
         choosen_concepts = self.umls_evaluator.category2concepts[choosen_category]
         if len(choosen_concepts) <= 1:
-            return 0
+            return 0, 0, 0
         p1 = self.pairwise_cosine(choosen_concepts)
 
         p2s = []
@@ -66,16 +125,17 @@ class Benchmark:
             p2s.append(p2)
 
         avg_p2 = sum(p2s) / len(p2s)
-        # print(p2s)
-        print(f'{choosen_category}: within {p1}, out {avg_p2}, distance {p1 - avg_p2}')
-        return p1 - avg_p2
+        return p1, avg_p2, p1 - avg_p2
 
     def all_categories_benchmark(self):
 
         distances = []
-        for category in (self.umls_evaluator.category2concepts.keys()):
-            distance_within_without = self.category_benchmark(category)
-            distances.append(distance_within_without)
+        categories = tqdm(self.umls_evaluator.category2concepts.keys())
+        for category in categories:
+            within, out, distance = self.category_benchmark(category)
+            distances.append(distance)
+            categories.set_description(f"{category}: {within:.4f}|{out:.4f}|{distance:.4f}")
+            categories.refresh()  # to show immediately the update
 
         benchmark_value = sum(distances) / len(distances)
         print(benchmark_value)
@@ -107,14 +167,14 @@ class Benchmark:
                     return 1
             return 0
 
-        s = self.embeddings.get_vector(seed_pair[0])-self.embeddings.get_vector(seed_pair[1])
+        s = self.embeddings.get_vector(seed_pair[0]) - self.embeddings.get_vector(seed_pair[1])
         # todo: choose v_star correctly and add ndf_rt source
         v_star = self.umls_evaluator.category2concepts["category"]
         sigma = 0
         for v in v_star:
             union = {}
             for i in range(0, k):
-                union.update(self.embeddings.get_vector(v)-self.embeddings.get_vector(s))
+                union.update(self.embeddings.get_vector(v) - self.embeddings.get_vector(s))
             sigma += relation_true(union, r)
         return sigma / len(v_star)
 
@@ -148,7 +208,7 @@ def similarities(vectors, word, umls):
 
 def main():
     umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
-    vecs = Embeddings.load(path="data/no_prep_vecs.kv")
+    vecs = Embeddings.load(path="data/no_prep_vecs_all.kv")
     evaluator = UMLSEvaluator(from_dir='E:/AML4DH-DATA/UMLS', vectors=vecs)
 
     # for c, v in vecs.most_similar("Cisplatin"):
@@ -170,8 +230,9 @@ def main():
     # print([(umls_mapper.un_umls(c), Embedding(umls_mapper.un_umls(c), vecs[c])) for c in vecs.vocab])
 
     benchmark = Benchmark(vecs, umls_mapper, evaluator)
-    benchmark.choi_benchmark()
-    # benchmark.all_categories_benchmark()
+    # benchmark.choi_benchmark()
+    benchmark.all_categories_benchmark()
+
     # benchmark.category_benchmark("Nucleotide Sequence")
 
     # emb = EmbeddingSet( {umls_mapper.un_umls(c, single_return=True): Embedding(umls_mapper.un_umls(c,

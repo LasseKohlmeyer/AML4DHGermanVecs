@@ -6,13 +6,18 @@ from tqdm import tqdm
 
 from UMLS import UMLSMapper, UMLSEvaluator
 from embeddings import Embeddings
+from abc import ABC, abstractmethod
 
 
-class Benchmark:
+class AbstractBenchmark(ABC):
     def __init__(self, embeddings: gensim.models.KeyedVectors, umls_mapper: UMLSMapper, umls_evaluator: UMLSEvaluator):
         self.embeddings = embeddings
         self.umls_mapper = umls_mapper
         self.umls_evaluator = umls_evaluator
+
+    @abstractmethod
+    def evaluate(self):
+        pass
 
     def cosine(self, word1=None, word2=None, c1=None, c2=None):
 
@@ -25,11 +30,19 @@ class Benchmark:
         else:
             return cos
 
+
+class CategoryBenchmark(AbstractBenchmark):
+    def __init__(self, embeddings: gensim.models.KeyedVectors, umls_mapper: UMLSMapper, umls_evaluator: UMLSEvaluator):
+        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)
+
+    def evaluate(self):
+        print(self.all_categories_benchmark())
+
     def pairwise_cosine(self, concepts1, concepts2=None):
         if concepts2 is None:
             concepts2 = concepts1
             s = 0
-            count = -1
+            count = 0
             for i, concept1 in enumerate(concepts1):
                 for j, concept2 in enumerate(concepts2):
                     if j > i:
@@ -51,6 +64,48 @@ class Benchmark:
                     s += c
                     count += 1
             return s / count
+
+    def category_benchmark(self, choosen_category):
+        other_categories = self.umls_evaluator.category2concepts.keys()
+        choosen_concepts = self.umls_evaluator.category2concepts[choosen_category]
+        if len(choosen_concepts) <= 1:
+            return 0, 0, 0
+        p1 = self.pairwise_cosine(choosen_concepts)
+
+        p2s = []
+        for other_category in other_categories:
+            if other_category == choosen_category:
+                continue
+
+            other_concepts = self.umls_evaluator.category2concepts[other_category]
+            if len(choosen_concepts) == 0 or len(other_concepts) == 0:
+                continue
+            p2 = self.pairwise_cosine(choosen_concepts, other_concepts)
+            p2s.append(p2)
+
+        avg_p2 = sum(p2s) / len(p2s)
+        return p1, avg_p2, p1 - avg_p2
+
+    def all_categories_benchmark(self):
+
+        distances = []
+        categories = tqdm(self.umls_evaluator.category2concepts.keys())
+        for category in categories:
+            within, out, distance = self.category_benchmark(category)
+            distances.append(distance)
+            categories.set_description(f"{category}: {within:.4f}|{out:.4f}|{distance:.4f}")
+            categories.refresh()  # to show immediately the update
+
+        benchmark_value = sum(distances) / len(distances)
+        return benchmark_value
+
+
+class SilhouetteCoefficient(AbstractBenchmark):
+    def __init__(self, embeddings: gensim.models.KeyedVectors, umls_mapper: UMLSMapper, umls_evaluator: UMLSEvaluator):
+        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)
+
+    def evaluate(self):
+        print(self.silhouette_coefficient())
 
     def silhouette(self, term, category):
         def mean_between_distance(datapoint, same_cluster):
@@ -105,42 +160,86 @@ class Benchmark:
             s_is.append(mean_category_s_i)
             categories.set_description(f"{category}: {mean_category_s_i:.4f}")
             categories.refresh()  # to show immediately the update
-        return max(s_is) # min, avg?
+        return max(s_is)  # min, avg?
 
-    def category_benchmark(self, choosen_category):
-        other_categories = self.umls_evaluator.category2concepts.keys()
-        choosen_concepts = self.umls_evaluator.category2concepts[choosen_category]
-        if len(choosen_concepts) <= 1:
-            return 0, 0, 0
-        p1 = self.pairwise_cosine(choosen_concepts)
+class EmbeddingSilhouetteCoefficient(AbstractBenchmark):
+    def __init__(self, embeddings: gensim.models.KeyedVectors, umls_mapper: UMLSMapper, umls_evaluator: UMLSEvaluator):
+        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)
 
-        p2s = []
-        for other_category in other_categories:
-            if other_category == choosen_category:
-                continue
+    def evaluate(self):
+        print(self.silhouette_coefficient())
 
-            other_concepts = self.umls_evaluator.category2concepts[other_category]
-            if len(choosen_concepts) == 0 or len(other_concepts) == 0:
-                continue
-            p2 = self.pairwise_cosine(choosen_concepts, other_concepts)
-            p2s.append(p2)
+    def silhouette(self, term, category):
+        def mean_between_distance(datapoint, same_cluster):
+            sigma_ai = 0
+            for reference_point in same_cluster:
+                if datapoint == reference_point:
+                    continue
+                sigma_ai += self.cosine(c1=datapoint, c2=reference_point)
 
-        avg_p2 = sum(p2s) / len(p2s)
-        return p1, avg_p2, p1 - avg_p2
+            return sigma_ai / (len(same_cluster) - 1)
 
-    def all_categories_benchmark(self):
+        def smallest_mean_out_distance(datapoint, other_clusters):
+            distances = []
+            for other_cluster in other_clusters:
+                sigma_bi = 0
+                for other_reference_point in other_cluster:
+                    sigma_bi += self.cosine(c1=datapoint, c2=other_reference_point)
+                sigma_bi = sigma_bi / len(other_cluster)
+                distances.append(sigma_bi)
+            # return sum(distances)/len(distances) # alternative?
+            return sum(distances)/len(distances)
 
-        distances = []
+        cluster = self.umls_evaluator.category2concepts[category]
+        other_cluster_names = set(self.umls_evaluator.category2concepts.keys()).difference(category)
+        other_clusters = [self.umls_evaluator.category2concepts[category] for category in other_cluster_names]
+
+        a_i = mean_between_distance(term, cluster)
+        b_i = smallest_mean_out_distance(term, other_clusters)
+
+        if a_i < b_i:
+            s_i = 1 - a_i / b_i
+        elif a_i == b_i:
+            s_i = 0
+        else:
+            s_i = b_i / a_i - 1
+
+        return s_i
+
+    def silhouette_coefficient(self):
+        s_is = []
         categories = tqdm(self.umls_evaluator.category2concepts.keys())
         for category in categories:
-            within, out, distance = self.category_benchmark(category)
-            distances.append(distance)
-            categories.set_description(f"{category}: {within:.4f}|{out:.4f}|{distance:.4f}")
-            categories.refresh()  # to show immediately the update
+            category_concepts = self.umls_evaluator.category2concepts[category]
+            if len(category_concepts) < 2:
+                continue
 
-        benchmark_value = sum(distances) / len(distances)
-        print(benchmark_value)
-        return benchmark_value
+            category_s_is = []
+            for term in category_concepts:
+                category_s_is.append(self.silhouette(term, category))
+
+            mean_category_s_i = sum(category_s_is) / len(category_s_is)
+            s_is.append(mean_category_s_i)
+            categories.set_description(f"{category}: {mean_category_s_i:.4f}")
+            categories.refresh()  # to show immediately the update
+        return sum(s_is)/len(s_is)  # min, max?
+
+
+class ChoiBenchmark(AbstractBenchmark):
+    def __init__(self, embeddings: gensim.models.KeyedVectors, umls_mapper: UMLSMapper, umls_evaluator: UMLSEvaluator):
+        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)
+
+    def evaluate(self):
+        categories = ['Pharmacologic Substance',
+                      'Disease or Syndrome',
+                      'Neoplastic Process',
+                      'Clinical Drug',
+                      'Finding',
+                      'Injury or Poisoning'
+                      ]
+
+        for category in categories:
+            print(f'{category}: {self.mcsm(category)}')
 
     def mcsm(self, category, k=40):
         def category_true(concept, category):
@@ -179,17 +278,18 @@ class Benchmark:
             sigma += relation_true(union, r)
         return sigma / len(v_star)
 
-    def choi_benchmark(self):
-        categories = ['Pharmacologic Substance',
-                      'Disease or Syndrome',
-                      'Neoplastic Process',
-                      'Clinical Drug',
-                      'Finding',
-                      'Injury or Poisoning'
-                      ]
 
-        for category in categories:
-            print(f'{category}: {self.mcsm(category)}')
+class Evaluation:
+    def __init__(self, embeddings: gensim.models.KeyedVectors, umls_mapper: UMLSMapper, umls_evaluator: UMLSEvaluator):
+        self.benchmarks = [CategoryBenchmark(embeddings, umls_mapper, umls_evaluator),
+                           SilhouetteCoefficient(embeddings, umls_mapper, umls_evaluator),
+                           ChoiBenchmark(embeddings, umls_mapper, umls_evaluator)
+                           ]
+
+    def evaluate(self):
+        for benchmark in self.benchmarks:
+            print(benchmark.__class__.__name__)
+            benchmark.evaluate()
 
 
 def analogies(vectors, start, minus, plus, umls: UMLSMapper):
@@ -209,7 +309,7 @@ def similarities(vectors, word, umls):
 
 def main():
     umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
-    vecs = Embeddings.load(path="data/no_prep_vecs_all.kv")
+    vecs = Embeddings.load(path="data/no_prep_vecs_test_all.kv")
     evaluator = UMLSEvaluator(from_dir='E:/AML4DH-DATA/UMLS', vectors=vecs)
 
     # for c, v in vecs.most_similar("Cisplatin"):
@@ -230,9 +330,11 @@ def main():
 
     # print([(umls_mapper.un_umls(c), Embedding(umls_mapper.un_umls(c), vecs[c])) for c in vecs.vocab])
 
-    benchmark = Benchmark(vecs, umls_mapper, evaluator)
-    # benchmark.choi_benchmark()
-    benchmark.all_categories_benchmark()
+    # benchmark = CategoryBenchmark(vecs, umls_mapper, evaluator)
+    # benchmark.evaluate()
+
+    eval = Evaluation(vecs, umls_mapper, evaluator)
+    eval.evaluate()
 
     # benchmark.category_benchmark("Nucleotide Sequence")
 

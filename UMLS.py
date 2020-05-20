@@ -167,7 +167,7 @@ class UMLSEvaluator:
         concept2category = defaultdict(list)
         category2concepts = defaultdict(list)
 
-        for i, row in df.iterrows():
+        for i, row in tqdm(df.iterrows(), total=len(df)):
             if row["CUI"] in self.vocab:
                 concept2category[row["CUI"]].append(row["STY"])
                 category2concepts[row["STY"]].append(row["CUI"])

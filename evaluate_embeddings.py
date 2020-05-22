@@ -1,16 +1,20 @@
 import math
+from enum import Enum
 from typing import Tuple
 
 import gensim
 from tqdm import tqdm
 
+from NDF import NDFEvaluator
 from UMLS import UMLSMapper, UMLSEvaluator
 from embeddings import Embeddings
 from abc import ABC, abstractmethod
 
 
 class AbstractBenchmark(ABC):
-    def __init__(self, embeddings: gensim.models.KeyedVectors, umls_mapper: UMLSMapper, umls_evaluator: UMLSEvaluator):
+    def __init__(self, embeddings: gensim.models.KeyedVectors,
+                 umls_mapper: UMLSMapper,
+                 umls_evaluator: UMLSEvaluator = None):
         self.embeddings = embeddings
         self.umls_mapper = umls_mapper
         self.umls_evaluator = umls_evaluator
@@ -225,9 +229,17 @@ class EmbeddingSilhouetteCoefficient(AbstractBenchmark):
         return sum(s_is)/len(s_is)  # min, max?
 
 
+class Relation(str, Enum):
+    MAY_TREAT = "may_treat"
+    MAY_PREVENT = "may_prevent"
+
+
 class ChoiBenchmark(AbstractBenchmark):
-    def __init__(self, embeddings: gensim.models.KeyedVectors, umls_mapper: UMLSMapper, umls_evaluator: UMLSEvaluator):
-        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)
+    def __init__(self, embeddings: gensim.models.KeyedVectors,
+                 umls_mapper: UMLSMapper,
+                 ndf_evaluator: NDFEvaluator):
+        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
+        self.ndf_evaluator = ndf_evaluator
 
     def evaluate(self):
         categories = ['Pharmacologic Substance',
@@ -238,8 +250,15 @@ class ChoiBenchmark(AbstractBenchmark):
                       'Injury or Poisoning'
                       ]
 
-        for category in categories:
-            print(f'{category}: {self.mcsm(category)}')
+        # for category in categories:
+        #     print(f'{category}: {self.mcsm(category)}')
+        relations =[
+            Relation.MAY_TREAT,
+            Relation.MAY_PREVENT
+        ]
+        for relation in relations:
+            print(relation, "-", self.mrm(relation=relation))
+
 
     def mcsm(self, category, k=40):
         def category_true(concept, category):
@@ -260,32 +279,64 @@ class ChoiBenchmark(AbstractBenchmark):
                 sigma += category_true(v_i, category) / math.log((i + 1) + 1, 2)
         return sigma / len(v_t)
 
-    def mrm(self, r, seed_pair: Tuple[str, str], k=40):
-        def relation_true(concepts, relation):
+    def mrm(self, seed_pair: Tuple[str, str] = None, k=40, relation=Relation.MAY_PREVENT):
+        def relation_true(selected_concept, concepts):
             for concept in concepts:
-                if concept in relation:
+                related_terms = relation_dict.get(selected_concept)
+                if related_terms and concept in related_terms:
                     return 1
+
+                inverse_related_terms = relation_dict_reversed.get(selected_concept)
+                if inverse_related_terms and concept in inverse_related_terms:
+                    return 1
+
             return 0
 
+        def get_seed_pair():
+            for key, values in relation_dict.items():
+                if key in v_star:
+                    for value in values:
+                        if value in v_star:
+                            return (key, value)
+
+            return (self.umls_mapper.umls_dict["Cisplatin"], self.umls_mapper.umls_dict["Carboplatin"])
+        if relation == Relation.MAY_TREAT:
+            relation_dict = self.ndf_evaluator.may_treat
+            relation_dict_reversed = self.ndf_evaluator.reverted_treat
+        else:
+            relation_dict = self.ndf_evaluator.may_prevent
+            relation_dict_reversed = self.ndf_evaluator.reverted_prevent
+
+        v_star = set(relation_dict.keys())
+        v_star.update(relation_dict_reversed.keys())
+        v_star = [concept for concept in v_star if concept in self.embeddings.vocab]
+
+        if seed_pair is None:
+            seed_pair = get_seed_pair()
+
+        print(seed_pair)
         s = self.embeddings.get_vector(seed_pair[0]) - self.embeddings.get_vector(seed_pair[1])
-        # todo: choose v_star correctly and add ndf_rt source
-        v_star = self.umls_evaluator.category2concepts["category"]
+
         sigma = 0
+
         for v in v_star:
-            union = {}
-            for i in range(0, k):
-                union.update(self.embeddings.get_vector(v) - self.embeddings.get_vector(s))
-            sigma += relation_true(union, r)
+            neighbors = self.embeddings.most_similar(positive=[self.embeddings.get_vector(v)-s], topn=k)
+            neighbors = [tupl[0] for tupl in neighbors]
+
+            sigma += relation_true(selected_concept=v, concepts=neighbors)
         return sigma / len(v_star)
 
 
-
 class Evaluation:
-    def __init__(self, embeddings: gensim.models.KeyedVectors, umls_mapper: UMLSMapper, umls_evaluator: UMLSEvaluator):
-        self.benchmarks = [CategoryBenchmark(embeddings, umls_mapper, umls_evaluator),
-                           SilhouetteCoefficient(embeddings, umls_mapper, umls_evaluator),
-                           ChoiBenchmark(embeddings, umls_mapper, umls_evaluator)
-                           ]
+    def __init__(self, embeddings: gensim.models.KeyedVectors,
+                 umls_mapper: UMLSMapper,
+                 umls_evaluator: UMLSEvaluator,
+                 ndf_evaluator: NDFEvaluator):
+        self.benchmarks = [
+            # CategoryBenchmark(embeddings, umls_mapper, umls_evaluator),
+            # SilhouetteCoefficient(embeddings, umls_mapper, umls_evaluator),
+            ChoiBenchmark(embeddings, umls_mapper, ndf_evaluator)
+        ]
 
     def evaluate(self):
         for benchmark in self.benchmarks:
@@ -311,7 +362,8 @@ def similarities(vectors, word, umls):
 def main():
     umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
     vecs = Embeddings.load(path="data/no_prep_vecs_test_all.kv")
-    evaluator = UMLSEvaluator(from_dir='E:/AML4DH-DATA/UMLS', vectors=vecs)
+    umls_evaluator = None # UMLSEvaluator(from_dir='E:/AML4DH-DATA/UMLS', vectors=vecs)
+    ndf_evaluator = NDFEvaluator(from_dir="E:/AML4DH-DATA/NDF")
 
     # for c, v in vecs.most_similar("Cisplatin"):
     #     print(umls_mapper.un_umls(c), v)
@@ -334,7 +386,7 @@ def main():
     # benchmark = CategoryBenchmark(vecs, umls_mapper, evaluator)
     # benchmark.evaluate()
 
-    eval = Evaluation(vecs, umls_mapper, evaluator)
+    eval = Evaluation(vecs, umls_mapper, umls_evaluator, ndf_evaluator)
     eval.evaluate()
 
     # benchmark.category_benchmark("Nucleotide Sequence")

@@ -279,6 +279,7 @@ class ChoiBenchmark(AbstractBenchmark):
         return sigma / len(v_star)
 
 
+
 class Evaluation:
     def __init__(self, embeddings: gensim.models.KeyedVectors, umls_mapper: UMLSMapper, umls_evaluator: UMLSEvaluator):
         self.benchmarks = [CategoryBenchmark(embeddings, umls_mapper, umls_evaluator),

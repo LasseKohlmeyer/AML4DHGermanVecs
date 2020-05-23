@@ -5,7 +5,7 @@ from typing import Tuple
 import gensim
 from tqdm import tqdm
 
-from NDF import NDFEvaluator
+from evaluation_resource import NDFEvaluator
 from UMLS import UMLSMapper, UMLSEvaluator
 from embeddings import Embeddings
 from abc import ABC, abstractmethod
@@ -229,7 +229,7 @@ class EmbeddingSilhouetteCoefficient(AbstractBenchmark):
         return sum(s_is)/len(s_is)  # min, max?
 
 
-class Relation(str, Enum):
+class Relation(Enum):
     MAY_TREAT = "may_treat"
     MAY_PREVENT = "may_prevent"
 
@@ -257,7 +257,8 @@ class ChoiBenchmark(AbstractBenchmark):
             Relation.MAY_PREVENT
         ]
         for relation in relations:
-            print(relation, "-", self.mrm(relation=relation))
+            mean, max_value = self.run_mrm(relation=relation)
+            print(f'{relation} - mean: {mean}, max: {max_value}')
 
 
     def mcsm(self, category, k=40):
@@ -279,27 +280,55 @@ class ChoiBenchmark(AbstractBenchmark):
                 sigma += category_true(v_i, category) / math.log((i + 1) + 1, 2)
         return sigma / len(v_t)
 
-    def mrm(self, seed_pair: Tuple[str, str] = None, k=40, relation=Relation.MAY_PREVENT):
+    def mrm(self, relation_dictionary, relation_dictionary_reversed, v_star, seed_pair: Tuple[str, str] = None, k=40):
         def relation_true(selected_concept, concepts):
             for concept in concepts:
-                related_terms = relation_dict.get(selected_concept)
+                related_terms = relation_dictionary.get(selected_concept)
                 if related_terms and concept in related_terms:
                     return 1
 
-                inverse_related_terms = relation_dict_reversed.get(selected_concept)
+                inverse_related_terms = relation_dictionary_reversed.get(selected_concept)
                 if inverse_related_terms and concept in inverse_related_terms:
                     return 1
-
             return 0
 
         def get_seed_pair():
-            for key, values in relation_dict.items():
+            for key, values in relation_dictionary.items():
                 if key in v_star:
                     for value in values:
                         if value in v_star:
-                            return (key, value)
+                            return key, value
 
-            return (self.umls_mapper.umls_dict["Cisplatin"], self.umls_mapper.umls_dict["Carboplatin"])
+            return self.umls_mapper.umls_dict["Cisplatin"], self.umls_mapper.umls_dict["Carboplatin"]
+
+        # if relation == Relation.MAY_TREAT:
+        #     relation_dictionary = self.ndf_evaluator.may_treat
+        #     relation_dictionary_reversed = self.ndf_evaluator.reverted_treat
+        # else:
+        #     relation_dictionary = self.ndf_evaluator.may_prevent
+        #     relation_dictionary_reversed = self.ndf_evaluator.reverted_prevent
+        #
+        # v_star = set(relation_dictionary.keys())
+        # v_star.update(relation_dictionary_reversed.keys())
+        # v_star = [concept for concept in v_star if concept in self.embeddings.vocab]
+
+        if seed_pair is None:
+            seed_pair = get_seed_pair()
+
+        # print(seed_pair)
+        s = self.embeddings.get_vector(seed_pair[0]) - self.embeddings.get_vector(seed_pair[1])
+
+        sigma = 0
+
+        for v in v_star:
+            neighbors = self.embeddings.most_similar(positive=[self.embeddings.get_vector(v)-s], topn=k)
+            neighbors = [tupl[0] for tupl in neighbors]
+
+            sigma += relation_true(selected_concept=v, concepts=neighbors)
+        return sigma / len(v_star)
+
+    def run_mrm(self, relation: Relation):
+
         if relation == Relation.MAY_TREAT:
             relation_dict = self.ndf_evaluator.may_treat
             relation_dict_reversed = self.ndf_evaluator.reverted_treat
@@ -311,20 +340,19 @@ class ChoiBenchmark(AbstractBenchmark):
         v_star.update(relation_dict_reversed.keys())
         v_star = [concept for concept in v_star if concept in self.embeddings.vocab]
 
-        if seed_pair is None:
-            seed_pair = get_seed_pair()
+        results = []
+        tqdm_progress = tqdm(relation_dict.items(), total=len(relation_dict.keys()))
+        for key, values in tqdm_progress:
+            if key in v_star:
+                for value in values:
+                    if value in v_star:
+                        results.append(self.mrm(relation_dict, relation_dict_reversed, v_star,
+                                                seed_pair=(key, value), k=40))
+                        tqdm_progress.set_description(f'{key}: [{results[-1]:.5f}, {sum(results) / len(results):.5f}, {max(results):.5f}]')
+                        tqdm_progress.update()
 
-        print(seed_pair)
-        s = self.embeddings.get_vector(seed_pair[0]) - self.embeddings.get_vector(seed_pair[1])
 
-        sigma = 0
-
-        for v in v_star:
-            neighbors = self.embeddings.most_similar(positive=[self.embeddings.get_vector(v)-s], topn=k)
-            neighbors = [tupl[0] for tupl in neighbors]
-
-            sigma += relation_true(selected_concept=v, concepts=neighbors)
-        return sigma / len(v_star)
+        return sum(results)/len(results), max(results)
 
 
 class Evaluation:

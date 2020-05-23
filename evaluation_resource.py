@@ -87,7 +87,7 @@ class SRSEvaluator(EvaluationResource):
             nested_dictionary = defaultdict(lambda: defaultdict(dict))
             for i, row in df.iterrows():
                 nested_dictionary[row["CUI1"]][row["CUI2"]] = row["Mean"]
-                nested_dictionary[row["CUI2"]][row["CUI1"]] = row["Mean"]
+                # nested_dictionary[row["CUI2"]][row["CUI1"]] = row["Mean"]
 
             return nested_dictionary
 

@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from UMLS import UMLSMapper, UMLSEvaluator
 from embeddings import Embeddings
-from evaluation_resource import NDFEvaluator
+from evaluation_resource import NDFEvaluator, SRSEvaluator
 
 
 def revert_list_dict(dictionary: Dict[str, Set[str]], filter_collection: Iterable = None) -> Dict[str, Set[str]]:
@@ -27,7 +27,8 @@ class AbstractBenchmark(ABC):
                  umls_evaluator: UMLSEvaluator = None):
         self.embeddings = embeddings
         self.umls_mapper = umls_mapper
-        self.umls_evaluator = umls_evaluator
+        if umls_evaluator:
+            self.umls_evaluator = umls_evaluator
 
     @abstractmethod
     def evaluate(self):
@@ -376,15 +377,56 @@ class ChoiBenchmark(AbstractBenchmark):
         return sum(results)/len(results), max(results)
 
 
+class HumanAssessment(Enum):
+    RELATEDNESS = "relatedness"
+    RELATEDNESS_CONT = "relatedness_cont"
+    SIMILARITY_CONT = "similarity_cont"
+
+
+class HumanAssessmentBenchmark(AbstractBenchmark):
+    def __init__(self,  embeddings: gensim.models.KeyedVectors,
+                 umls_mapper: UMLSMapper,
+                 srs_evaluator: SRSEvaluator):
+        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
+        self.srs_evaluator = srs_evaluator
+
+    def get_mae(self, human_assessment_dict):
+        sigma = []
+        for concept, other_concepts in human_assessment_dict.items():
+            if concept in self.embeddings.vocab:
+                for other_concept in other_concepts:
+                    if other_concept in self.embeddings.vocab:
+                        sigma.append(abs(human_assessment_dict[concept][other_concept]
+                                         - self.embeddings.similarity(concept, other_concept)))
+
+        return sum(sigma)/len(sigma)
+
+    def human_assessments(self, type: HumanAssessment):
+        if type == HumanAssessment.RELATEDNESS:
+            return self.get_mae(self.srs_evaluator.human_relatedness)
+        elif type == HumanAssessment.SIMILARITY_CONT:
+            return self.get_mae(self.srs_evaluator.human_similarity_cont)
+        else:
+            return self.get_mae(self.srs_evaluator.human_relatedness_cont)
+
+    def evaluate(self):
+        assessments = [HumanAssessment.SIMILARITY_CONT, HumanAssessment.RELATEDNESS, HumanAssessment.RELATEDNESS_CONT]
+        for assessment in assessments:
+            print(f'{assessment}: {self.human_assessments(assessment)}')
+
+
 class Evaluation:
     def __init__(self, embeddings: gensim.models.KeyedVectors,
                  umls_mapper: UMLSMapper,
                  umls_evaluator: UMLSEvaluator,
-                 ndf_evaluator: NDFEvaluator):
+                 ndf_evaluator: NDFEvaluator,
+                 srs_evaluator: SRSEvaluator):
+
         self.benchmarks = [
             # CategoryBenchmark(embeddings, umls_mapper, umls_evaluator),
             # SilhouetteCoefficient(embeddings, umls_mapper, umls_evaluator),
-            ChoiBenchmark(embeddings, umls_mapper, umls_evaluator, ndf_evaluator)
+            # ChoiBenchmark(embeddings, umls_mapper, umls_evaluator, ndf_evaluator)
+            HumanAssessmentBenchmark(embeddings, umls_mapper, srs_evaluator)
         ]
 
     def evaluate(self):
@@ -420,6 +462,10 @@ def main():
     # ndf_evaluator.save_as_json(path="E:/AML4DH-DATA/NDF/ndf_eval.json")
     ndf_evaluator = NDFEvaluator(json_path="E:/AML4DH-DATA/NDF/ndf_eval.json")
 
+    # srs_evaluator = SRSEvaluator(from_dir="E:/AML4DH-DATA/SRS")
+    # srs_evaluator.save_as_json("E:/AML4DH-DATA/SRS/eval.json")
+    srs_evaluator = SRSEvaluator(json_path="E:/AML4DH-DATA/SRS/eval.json")
+
     # for c, v in vecs.most_similar("Cisplatin"):
     #     print(umls_mapper.un_umls(c), v)
     #
@@ -441,7 +487,7 @@ def main():
     # benchmark = CategoryBenchmark(vecs, umls_mapper, evaluator)
     # benchmark.evaluate()
 
-    evaluation = Evaluation(vecs, umls_mapper, umls_evaluator, ndf_evaluator)
+    evaluation = Evaluation(vecs, umls_mapper, umls_evaluator, ndf_evaluator, srs_evaluator)
     evaluation.evaluate()
 
     # benchmark.category_benchmark("Nucleotide Sequence")

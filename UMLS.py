@@ -13,6 +13,8 @@ from itertools import chain
 import spacy
 from spacy.matcher import PhraseMatcher
 
+from evaluation_resource import EvaluationResource
+
 
 class UMLSMapper:
     # https://www.ncbi.nlm.nih.gov/books/NBK9685/table/ch03.T.concept_names_and_sources_file_mr/
@@ -152,13 +154,13 @@ class UMLSMapper:
         return replaced_docs
 
 
-class UMLSEvaluator:
+class UMLSEvaluator(EvaluationResource):
     def __init__(self, vectors: gensim.models.KeyedVectors, from_dir="E:/AML4DH-DATA/UMLS"):
         print("initialize UMLSEvaluator...")
         self.vocab = vectors.vocab
-        self.concept2category, self.category2concepts = self.load_umls_semantics(directory=from_dir)
+        self.concept2category, self.category2concepts = self.load_semantics(directory=from_dir)
 
-    def load_umls_semantics(self, directory):
+    def load_semantics(self, directory):
         path = os.path.join(directory, "MRSTY.RRF")
         df = pd.read_csv(path, delimiter="|", header=None)
         df.columns = ["CUI", "TUI", "STN", "STY", "ATUI", "CVF", "NONE"]

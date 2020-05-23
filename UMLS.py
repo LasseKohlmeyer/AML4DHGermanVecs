@@ -20,7 +20,7 @@ class UMLSMapper:
     # https://www.ncbi.nlm.nih.gov/books/NBK9685/table/ch03.T.concept_names_and_sources_file_mr/
     def __init__(self, from_dir=None, umls_words: Iterable[str] = None):
         # self.db = DictDatabase(WordNgramFeatureExtractor(2))
-        print("initialize UMLSMapper...")
+        print(f"initialize {self.__class__.__name__}...")
         self.db = DictDatabase(CharacterNgramFeatureExtractor(2))
 
         if from_dir:
@@ -158,10 +158,10 @@ class UMLSEvaluator(EvaluationResource):
     def __init__(self, json_path: str = None, from_dir: str = None):
 
         if from_dir:
-            print("initialize UMLSEvaluator... Load dir")
+            print(f"initialize {self.__class__.__name__}... Load dir")
             self.concept2category, self.category2concepts = self.load_semantics(directory=from_dir)
         if json_path:
-            print("initialize UMLSEvaluator... Load json")
+            print(f"initialize {self.__class__.__name__}... Load json")
             self.concept2category, self.category2concepts = self.load_from_json(json_path)
 
     def load_semantics(self, directory):
@@ -169,7 +169,6 @@ class UMLSEvaluator(EvaluationResource):
         df = pd.read_csv(path, delimiter="|", header=None)
         df.columns = ["CUI", "TUI", "STN", "STY", "ATUI", "CVF", "NONE"]
         df = df.drop(columns=['NONE'])
-
         concept2category = defaultdict(list)
         category2concepts = defaultdict(list)
 

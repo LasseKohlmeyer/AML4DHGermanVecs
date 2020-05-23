@@ -1,3 +1,4 @@
+import json
 from abc import ABC, abstractmethod
 import os
 from typing import Dict, List
@@ -9,11 +10,23 @@ class EvaluationResource(ABC):
     def load_semantics(self, directory: str):
         raise NotImplementedError
 
+    def save_as_json(self, path: str):
+        data = self.__dict__
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=0)
+
+    @abstractmethod
+    def load_from_json(self, path: str):
+        raise NotImplementedError
+
 
 class NDFEvaluator(EvaluationResource):
-    def __init__(self, from_dir="E:/AML4DH-DATA/NDF"):
+    def __init__(self, json_path: str = None, from_dir: str = None):
         print("initialize UMLSEvaluator...")
-        self.may_treat, self.may_prevent, self.reverted_treat, self.reverted_prevent = self.load_semantics(from_dir)
+        if from_dir:
+            self.may_treat, self.may_prevent, self.reverted_treat, self.reverted_prevent = self.load_semantics(from_dir)
+        if json_path:
+            self.may_treat, self.may_prevent, self.reverted_treat, self.reverted_prevent = self.load_from_json(json_path)
 
     def load_semantics(self, directory: str):
         def load_file(file_name: str) -> Dict[str, List[str]]:
@@ -41,3 +54,13 @@ class NDFEvaluator(EvaluationResource):
         may_treat_reverted_dict = revert(may_treat_dict)
         may_prevent_reverted_dict = revert(may_treat_dict)
         return may_treat_dict, may_prevent_dict, may_treat_reverted_dict, may_prevent_reverted_dict
+
+    def save_as_json(self, path: str):
+        data = self.__dict__
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=0)
+
+    def load_from_json(self, path: str):
+        with open(path, 'r', encoding='utf-8') as file:
+            data = json.loads(file.read())
+        return data["may_treat"], data["may_prevent"], data["reverted_treat"], data["reverted_prevent"]

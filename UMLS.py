@@ -1,7 +1,7 @@
 import os
 from collections import defaultdict
 from typing import Iterable, List, Dict
-
+import json
 import gensim
 from simstring.database.dict import DictDatabase
 from simstring.feature_extractor.character_ngram import CharacterNgramFeatureExtractor
@@ -155,10 +155,14 @@ class UMLSMapper:
 
 
 class UMLSEvaluator(EvaluationResource):
-    def __init__(self, vectors: gensim.models.KeyedVectors, from_dir="E:/AML4DH-DATA/UMLS"):
-        print("initialize UMLSEvaluator...")
-        self.vocab = vectors.vocab
-        self.concept2category, self.category2concepts = self.load_semantics(directory=from_dir)
+    def __init__(self, json_path: str = None, from_dir: str = None):
+
+        if from_dir:
+            print("initialize UMLSEvaluator... Load dir")
+            self.concept2category, self.category2concepts = self.load_semantics(directory=from_dir)
+        if json_path:
+            print("initialize UMLSEvaluator... Load json")
+            self.concept2category, self.category2concepts = self.load_from_json(json_path)
 
     def load_semantics(self, directory):
         path = os.path.join(directory, "MRSTY.RRF")
@@ -169,8 +173,12 @@ class UMLSEvaluator(EvaluationResource):
         concept2category = defaultdict(list)
         category2concepts = defaultdict(list)
 
-        for i, row in tqdm(df.iterrows(), total=len(df)):
-            if row["CUI"] in self.vocab:
-                concept2category[row["CUI"]].append(row["STY"])
-                category2concepts[row["STY"]].append(row["CUI"])
+        for i, row in tqdm(df.iterrows(), total=len(df), desc="Load UMLS data"):
+            concept2category[row["CUI"]].append(row["STY"])
+            category2concepts[row["STY"]].append(row["CUI"])
         return concept2category, category2concepts
+
+    def load_from_json(self, path: str):
+        with open(path, 'r', encoding='utf-8') as file:
+            data = json.loads(file.read())
+        return data["concept2category"], data["category2concepts"]

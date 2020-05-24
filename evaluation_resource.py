@@ -23,7 +23,6 @@ class EvaluationResource(ABC):
 
 class NDFEvaluator(EvaluationResource):
     def __init__(self, json_path: str = None, from_dir: str = None):
-        print(f"initialize {self.__class__.__name__}...")
         if from_dir:
             print(f"initialize {self.__class__.__name__}... Load dir")
             self.may_treat, self.may_prevent, self.reverted_treat, self.reverted_prevent = self.load_semantics(from_dir)

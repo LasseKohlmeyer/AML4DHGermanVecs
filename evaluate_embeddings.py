@@ -392,13 +392,15 @@ class HumanAssessmentBenchmark(AbstractBenchmark):
 
     def get_mae(self, human_assessment_dict):
         sigma = []
+
         for concept, other_concepts in human_assessment_dict.items():
             if concept in self.embeddings.vocab:
                 for other_concept in other_concepts:
                     if other_concept in self.embeddings.vocab:
-                        sigma.append(abs(human_assessment_dict[concept][other_concept]
-                                         - self.embeddings.similarity(concept, other_concept)))
-
+                        distance = abs(human_assessment_dict[concept][other_concept]
+                                       - self.embeddings.similarity(concept, other_concept))
+                        sigma.append(distance)
+        print(f'found {len(sigma)} assessments in embeddings')
         return sum(sigma)/len(sigma)
 
     def human_assessments(self, type: HumanAssessment):
@@ -451,7 +453,10 @@ def similarities(vectors, word, umls):
 
 
 def main():
-    umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
+    # umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
+    # umls_mapper.save_as_json(path="E:/AML4DH-DATA/UMLS/mapper.json")
+    umls_mapper = UMLSMapper(json_path="E:/AML4DH-DATA/UMLS/mapper.json")
+
     vecs = Embeddings.load(path="data/no_prep_vecs_test_all.kv")
 
     # umls_evaluator = UMLSEvaluator(from_dir='E:/AML4DH-DATA/UMLS')

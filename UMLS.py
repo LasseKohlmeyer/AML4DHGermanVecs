@@ -18,20 +18,24 @@ from evaluation_resource import EvaluationResource
 
 class UMLSMapper:
     # https://www.ncbi.nlm.nih.gov/books/NBK9685/table/ch03.T.concept_names_and_sources_file_mr/
-    def __init__(self, from_dir=None, umls_words: Iterable[str] = None):
+    def __init__(self, from_dir=None, json_path=None, umls_words: Iterable[str] = None):
         # self.db = DictDatabase(WordNgramFeatureExtractor(2))
-        print(f"initialize {self.__class__.__name__}...")
+
         self.db = DictDatabase(CharacterNgramFeatureExtractor(2))
 
         if from_dir:
-            self.directory = from_dir
-            self.umls_dict, self.umls_reverse_dict = self.load_umls_dict()
+            print(f"initialize {self.__class__.__name__}... Load dir")
+            self.umls_dict, self.umls_reverse_dict = self.load_umls_dict(from_dir)
+            self.add_words_to_db(self.umls_dict.keys())
+        elif json_path:
+            print(f"initialize {self.__class__.__name__}... Load json")
+            self.umls_dict, self.umls_reverse_dict = self.load_from_json(json_path)
             self.add_words_to_db(self.umls_dict.keys())
         else:
             self.add_words_to_db(umls_words)
 
-    def load_umls_dict(self):
-        path = os.path.join(self.directory, "GER_MRCONSO.RRF")
+    def load_umls_dict(self, directory):
+        path = os.path.join(directory, "GER_MRCONSO.RRF")
         df = pd.read_csv(path, delimiter="|", header=None)
         df.columns = ["CUI", "LAT", "TS", "LUI", "STT", "SUI", "ISPREF", "AUI", "SAUI", "SCUI", "SDUI", "SAB", "TTY",
                       "CODE", "STR", "SRL", "SUPPRESS", "CVF", "NONE"]
@@ -41,6 +45,17 @@ class UMLSMapper:
         for key, value in dic.items():
             rev_dic[value].append(key)
         return dic, rev_dic
+
+    def save_as_json(self, path: str):
+        data = self.__dict__
+        data.pop("db")
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=0)
+
+    def load_from_json(self, path: str):
+        with open(path, 'r', encoding='utf-8') as file:
+            data = json.loads(file.read())
+        return data["umls_dict"], data["umls_reverse_dict"]
 
     def add_words_to_db(self, words: Iterable[str]):
         for token in set(words):

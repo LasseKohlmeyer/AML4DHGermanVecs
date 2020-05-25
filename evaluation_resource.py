@@ -6,10 +6,22 @@ from collections import defaultdict
 import pandas as pd
 from sklearn import preprocessing
 
+
 class EvaluationResource(ABC):
     @abstractmethod
     def load_semantics(self, directory: str):
         raise NotImplementedError
+
+    def check_for_json_and_parse(self, from_dir: str, json_path: str):
+        if from_dir:
+            json_path = os.path.join(from_dir, json_path)
+            if os.path.exists(json_path):
+                print(f"initialize {self.__class__.__name__}... Load json")
+                self.set_attributes(*self.load_from_json(json_path))
+            else:
+                print(f"initialize {self.__class__.__name__}... Load dir")
+                self.set_attributes(*self.load_semantics(from_dir))
+                self.save_as_json(path=json_path)
 
     def save_as_json(self, path: str):
         data = self.__dict__
@@ -17,18 +29,21 @@ class EvaluationResource(ABC):
             json.dump(data, f, ensure_ascii=False, indent=0)
 
     @abstractmethod
+    def set_attributes(self, *args):
+        pass
+
+    @abstractmethod
     def load_from_json(self, path: str):
         raise NotImplementedError
 
 
 class NDFEvaluator(EvaluationResource):
-    def __init__(self, json_path: str = None, from_dir: str = None):
-        if from_dir:
-            print(f"initialize {self.__class__.__name__}... Load dir")
-            self.may_treat, self.may_prevent, self.reverted_treat, self.reverted_prevent = self.load_semantics(from_dir)
-        if json_path:
-            print(f"initialize {self.__class__.__name__}... Load json")
-            self.may_treat, self.may_prevent, self.reverted_treat, self.reverted_prevent = self.load_from_json(json_path)
+    def set_attributes(self, *args):
+        self.may_treat, self.may_prevent, self.reverted_treat, self.reverted_prevent = args
+
+    def __init__(self, from_dir: str = None, json_path: str = "ndf_eval.json"):
+        self.may_treat, self.may_prevent, self.reverted_treat, self.reverted_prevent = None, None, None, None
+        self.check_for_json_and_parse(from_dir=from_dir, json_path=json_path)
 
     def load_semantics(self, directory: str):
         def load_file(file_name: str) -> Dict[str, List[str]]:
@@ -65,13 +80,12 @@ class NDFEvaluator(EvaluationResource):
 
 
 class SRSEvaluator(EvaluationResource):
-    def __init__(self, json_path: str = None, from_dir: str = None):
-        if from_dir:
-            print(f"initialize {self.__class__.__name__}... Load dir")
-            self.human_relatedness, self.human_similarity_cont, self.human_relatedness_cont = self.load_semantics(from_dir)
-        if json_path:
-            print(f"initialize {self.__class__.__name__}... Load json")
-            self.human_relatedness, self.human_similarity_cont, self.human_relatedness_cont = self.load_from_json(json_path)
+    def set_attributes(self, *args):
+        self.human_relatedness, self.human_similarity_cont, self.human_relatedness_cont = args
+
+    def __init__(self, from_dir: str = None, json_path: str = "srs_eval.json"):
+        self.human_relatedness, self.human_similarity_cont, self.human_relatedness_cont = None, None, None
+        self.check_for_json_and_parse(from_dir=from_dir, json_path=json_path)
 
     def load_semantics(self, directory: str):
         def load_file(file_name: str) -> pd.DataFrame:

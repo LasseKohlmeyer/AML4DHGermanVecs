@@ -425,9 +425,9 @@ class Evaluation:
                  srs_evaluator: SRSEvaluator):
 
         self.benchmarks = [
-            # CategoryBenchmark(embeddings, umls_mapper, umls_evaluator),
-            # SilhouetteCoefficient(embeddings, umls_mapper, umls_evaluator),
-            # ChoiBenchmark(embeddings, umls_mapper, umls_evaluator, ndf_evaluator)
+            CategoryBenchmark(embeddings, umls_mapper, umls_evaluator),
+            SilhouetteCoefficient(embeddings, umls_mapper, umls_evaluator),
+            ChoiBenchmark(embeddings, umls_mapper, umls_evaluator, ndf_evaluator),
             HumanAssessmentBenchmark(embeddings, umls_mapper, srs_evaluator)
         ]
 
@@ -453,23 +453,17 @@ def similarities(vectors, word, umls):
 
 
 def main():
-    # umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
-    # umls_mapper.save_as_json(path="E:/AML4DH-DATA/UMLS/mapper.json")
-    umls_mapper = UMLSMapper(json_path="E:/AML4DH-DATA/UMLS/mapper.json")
+    umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
 
     vecs = Embeddings.load(path="data/no_prep_vecs_test_all.kv")
 
-    # umls_evaluator = UMLSEvaluator(from_dir='E:/AML4DH-DATA/UMLS')
-    # umls_evaluator.save_as_json(path="E:/AML4DH-DATA/UMLS/umls_eval.json")
-    umls_evaluator = UMLSEvaluator(json_path="E:/AML4DH-DATA/UMLS/umls_eval.json")
+    umls_evaluator = UMLSEvaluator(from_dir='E:/AML4DH-DATA/UMLS')
 
-    # ndf_evaluator = UMLSEvaluator(from_dir='E:/AML4DH-DATA/NDF')
-    # ndf_evaluator.save_as_json(path="E:/AML4DH-DATA/NDF/ndf_eval.json")
-    ndf_evaluator = NDFEvaluator(json_path="E:/AML4DH-DATA/NDF/ndf_eval.json")
+    ndf_evaluator = NDFEvaluator(from_dir='E:/AML4DH-DATA/NDF')
 
-    # srs_evaluator = SRSEvaluator(from_dir="E:/AML4DH-DATA/SRS")
-    # srs_evaluator.save_as_json("E:/AML4DH-DATA/SRS/eval.json")
-    srs_evaluator = SRSEvaluator(json_path="E:/AML4DH-DATA/SRS/eval.json")
+    srs_evaluator = SRSEvaluator(from_dir="E:/AML4DH-DATA/SRS")
+
+    print(srs_evaluator.human_relatedness)
 
     # for c, v in vecs.most_similar("Cisplatin"):
     #     print(umls_mapper.un_umls(c), v)

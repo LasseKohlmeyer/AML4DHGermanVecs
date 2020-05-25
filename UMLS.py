@@ -18,21 +18,35 @@ from evaluation_resource import EvaluationResource
 
 class UMLSMapper:
     # https://www.ncbi.nlm.nih.gov/books/NBK9685/table/ch03.T.concept_names_and_sources_file_mr/
-    def __init__(self, from_dir=None, json_path=None, umls_words: Iterable[str] = None):
+    def __init__(self, from_dir: str = None, json_path: str = "mapper.json", umls_words: Iterable[str] = None):
         # self.db = DictDatabase(WordNgramFeatureExtractor(2))
 
         self.db = DictDatabase(CharacterNgramFeatureExtractor(2))
 
         if from_dir:
-            print(f"initialize {self.__class__.__name__}... Load dir")
-            self.umls_dict, self.umls_reverse_dict = self.load_umls_dict(from_dir)
-            self.add_words_to_db(self.umls_dict.keys())
-        elif json_path:
-            print(f"initialize {self.__class__.__name__}... Load json")
-            self.umls_dict, self.umls_reverse_dict = self.load_from_json(json_path)
-            self.add_words_to_db(self.umls_dict.keys())
+            json_path = os.path.join(from_dir, json_path)
+            if os.path.exists(json_path):
+                print(f"initialize {self.__class__.__name__}... Load json")
+                self.umls_dict, self.umls_reverse_dict = self.load_from_json(json_path)
+                self.add_words_to_db(self.umls_dict.keys())
+            else:
+                print(f"initialize {self.__class__.__name__}... Load dir")
+                self.umls_dict, self.umls_reverse_dict = self.load_umls_dict(from_dir)
+                self.add_words_to_db(self.umls_dict.keys())
+                self.save_as_json(path=json_path)
         else:
             self.add_words_to_db(umls_words)
+
+        # if from_dir:
+        #     print(f"initialize {self.__class__.__name__}... Load dir")
+        #     self.umls_dict, self.umls_reverse_dict = self.load_umls_dict(from_dir)
+        #     self.add_words_to_db(self.umls_dict.keys())
+        # elif json_path:
+        #     print(f"initialize {self.__class__.__name__}... Load json")
+        #     self.umls_dict, self.umls_reverse_dict = self.load_from_json(json_path)
+        #     self.add_words_to_db(self.umls_dict.keys())
+        # else:
+        #     self.add_words_to_db(umls_words)
 
     def load_umls_dict(self, directory):
         path = os.path.join(directory, "GER_MRCONSO.RRF")
@@ -170,14 +184,12 @@ class UMLSMapper:
 
 
 class UMLSEvaluator(EvaluationResource):
-    def __init__(self, json_path: str = None, from_dir: str = None):
+    def set_attributes(self, *args):
+        self.concept2category, self.category2concepts = args
 
-        if from_dir:
-            print(f"initialize {self.__class__.__name__}... Load dir")
-            self.concept2category, self.category2concepts = self.load_semantics(directory=from_dir)
-        if json_path:
-            print(f"initialize {self.__class__.__name__}... Load json")
-            self.concept2category, self.category2concepts = self.load_from_json(json_path)
+    def __init__(self, from_dir: str = None, json_path: str = "umlS_eval.json"):
+        self.concept2category, self.category2concepts = None, None
+        self.check_for_json_and_parse(from_dir=from_dir, json_path=json_path)
 
     def load_semantics(self, directory):
         path = os.path.join(directory, "MRSTY.RRF")

@@ -2,15 +2,19 @@ import math
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from enum import Enum
-from typing import Tuple, Dict, Set, Iterable
-
+from typing import Tuple, Dict, Set, Iterable, List, Union
+import pandas as pd
 import gensim
 from tqdm import tqdm
 
 from UMLS import UMLSMapper, UMLSEvaluator
 from embeddings import Embeddings
 from evaluation_resource import NDFEvaluator, SRSEvaluator
-
+from fasttext import load_model as load_fasttext_model
+# from gensim.models.wrappers import FastText
+from gensim.models.fasttext import load_facebook_model
+from gensim.models.word2vec import Word2Vec
+import gensim.models.keyedvectors as word2vec
 
 def revert_list_dict(dictionary: Dict[str, Set[str]], filter_collection: Iterable = None) -> Dict[str, Set[str]]:
     reverted_dictionary = defaultdict(set)
@@ -22,24 +26,28 @@ def revert_list_dict(dictionary: Dict[str, Set[str]], filter_collection: Iterabl
 
 
 class AbstractBenchmark(ABC):
-    def __init__(self, embeddings: gensim.models.KeyedVectors,
+    def __init__(self, embeddings: Tuple[Union[gensim.models.KeyedVectors], str, str],
                  umls_mapper: UMLSMapper,
                  umls_evaluator: UMLSEvaluator = None):
-        self.embeddings = embeddings
+        self.vectors, self.dataset, self.algorithm = embeddings
+        try:
+            self.vocab = self.vectors.vocab
+        except AttributeError:
+            self.vocab = self.vectors.vocabulary
         self.umls_mapper = umls_mapper
         if umls_evaluator:
             self.umls_evaluator = umls_evaluator
 
     @abstractmethod
-    def evaluate(self):
+    def evaluate(self) -> float:
         pass
 
     def cosine(self, word1=None, word2=None, c1=None, c2=None):
 
         if word1:
-            cos = self.embeddings.similarity(self.umls_mapper.umls_dict[word1], self.umls_mapper.umls_dict[word2])
+            cos = self.vectors.similarity(self.umls_mapper.umls_dict[word1], self.umls_mapper.umls_dict[word2])
         else:
-            cos = self.embeddings.similarity(c1, c2)
+            cos = self.vectors.similarity(c1, c2)
         if cos < 0:
             return -cos
         else:
@@ -47,16 +55,20 @@ class AbstractBenchmark(ABC):
 
 
 class CategoryBenchmark(AbstractBenchmark):
-    def __init__(self, embeddings: gensim.models.KeyedVectors, umls_mapper: UMLSMapper, umls_evaluator: UMLSEvaluator):
+    def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str],
+                 umls_mapper: UMLSMapper,
+                 umls_evaluator: UMLSEvaluator):
         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)
 
         self.concept2category = {concept: category for concept, category in self.umls_evaluator.concept2category.items()
-                                 if concept in self.embeddings.vocab}
+                                 if concept in self.vocab}
 
         self.category2concepts = revert_list_dict(self.concept2category)
 
-    def evaluate(self):
-        print(self.all_categories_benchmark())
+    def evaluate(self) -> float:
+        score = self.all_categories_benchmark()
+        print(score)
+        return score
 
     def pairwise_cosine(self, concepts1, concepts2=None):
         if concepts2 is None:
@@ -121,15 +133,19 @@ class CategoryBenchmark(AbstractBenchmark):
 
 
 class SilhouetteCoefficient(AbstractBenchmark):
-    def __init__(self, embeddings: gensim.models.KeyedVectors, umls_mapper: UMLSMapper, umls_evaluator: UMLSEvaluator):
+    def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str],
+                 umls_mapper: UMLSMapper,
+                 umls_evaluator: UMLSEvaluator):
         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)
         self.concept2category = {concept: category for concept, category in self.umls_evaluator.concept2category.items()
-                                 if concept in self.embeddings.vocab}
+                                 if concept in self.vocab}
 
         self.category2concepts = revert_list_dict(self.concept2category)
 
-    def evaluate(self):
-        print(self.silhouette_coefficient())
+    def evaluate(self) -> float:
+        score = self.silhouette_coefficient()
+        print(score)
+        return score
 
     def silhouette(self, term, category):
         def mean_between_distance(datapoint, same_cluster):
@@ -188,15 +204,19 @@ class SilhouetteCoefficient(AbstractBenchmark):
 
 
 class EmbeddingSilhouetteCoefficient(AbstractBenchmark):
-    def __init__(self, embeddings: gensim.models.KeyedVectors, umls_mapper: UMLSMapper, umls_evaluator: UMLSEvaluator):
+    def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str],
+                 umls_mapper: UMLSMapper,
+                 umls_evaluator: UMLSEvaluator):
         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)
         self.concept2category = {concept: category for concept, category in self.umls_evaluator.concept2category.items()
-                                 if concept in self.embeddings.vocab}
+                                 if concept in self.vocab}
 
         self.category2concepts = revert_list_dict(self.concept2category)
 
     def evaluate(self):
-        print(self.silhouette_coefficient())
+        score = self.silhouette_coefficient()
+        print(score)
+        return score
 
     def silhouette(self, term, category):
         def mean_between_distance(datapoint, same_cluster):
@@ -260,7 +280,7 @@ class Relation(Enum):
 
 
 class ChoiBenchmark(AbstractBenchmark):
-    def __init__(self, embeddings: gensim.models.KeyedVectors,
+    def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str],
                  umls_mapper: UMLSMapper,
                  umls_evaluator: UMLSEvaluator,
                  ndf_evaluator: NDFEvaluator):
@@ -269,7 +289,7 @@ class ChoiBenchmark(AbstractBenchmark):
         self.umls_evaluator = umls_evaluator
 
         self.concept2category = {concept: category for concept, category in self.umls_evaluator.concept2category.items()
-                                 if concept in self.embeddings.vocab}
+                                 if concept in self.vocab}
 
         self.category2concepts = revert_list_dict(self.concept2category)
 
@@ -307,7 +327,7 @@ class ChoiBenchmark(AbstractBenchmark):
         sigma = 0
         for v in v_t:
             for i in range(0, k):
-                neighbors = self.embeddings.most_similar(v, topn=k)
+                neighbors = self.vectors.most_similar(v, topn=k)
                 v_i = neighbors[i][0]
                 # if word not in resource file ignore it
                 if v_i in self.concept2category:
@@ -338,12 +358,12 @@ class ChoiBenchmark(AbstractBenchmark):
         if seed_pair is None:
             seed_pair = get_seed_pair()
 
-        s = self.embeddings.get_vector(seed_pair[0]) - self.embeddings.get_vector(seed_pair[1])
+        s = self.vectors.get_vector(seed_pair[0]) - self.vectors.get_vector(seed_pair[1])
 
         sigma = 0
 
         for v in v_star:
-            neighbors = self.embeddings.most_similar(positive=[self.embeddings.get_vector(v)-s], topn=k)
+            neighbors = self.vectors.most_similar(positive=[self.vectors.get_vector(v) - s], topn=k)
             neighbors = [tupl[0] for tupl in neighbors]
 
             sigma += relation_true(selected_concept=v, concepts=neighbors)
@@ -360,7 +380,7 @@ class ChoiBenchmark(AbstractBenchmark):
 
         v_star = set(relation_dict.keys())
         v_star.update(relation_dict_reversed.keys())
-        v_star = [concept for concept in v_star if concept in self.embeddings.vocab]
+        v_star = [concept for concept in v_star if concept in self.vocab]
 
         results = []
         tqdm_progress = tqdm(relation_dict.items(), total=len(relation_dict.keys()))
@@ -384,7 +404,7 @@ class HumanAssessment(Enum):
 
 
 class HumanAssessmentBenchmark(AbstractBenchmark):
-    def __init__(self,  embeddings: gensim.models.KeyedVectors,
+    def __init__(self,  embeddings: Tuple[gensim.models.KeyedVectors, str, str],
                  umls_mapper: UMLSMapper,
                  srs_evaluator: SRSEvaluator):
         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
@@ -394,11 +414,11 @@ class HumanAssessmentBenchmark(AbstractBenchmark):
         sigma = []
 
         for concept, other_concepts in human_assessment_dict.items():
-            if concept in self.embeddings.vocab:
+            if concept in self.vocab:
                 for other_concept in other_concepts:
-                    if other_concept in self.embeddings.vocab:
+                    if other_concept in self.vocab:
                         distance = abs(human_assessment_dict[concept][other_concept]
-                                       - self.embeddings.similarity(concept, other_concept))
+                                       - self.vectors.similarity(concept, other_concept))
                         sigma.append(distance)
         print(f'found {len(sigma)} assessments in embeddings')
         return sum(sigma)/len(sigma)
@@ -411,52 +431,75 @@ class HumanAssessmentBenchmark(AbstractBenchmark):
         else:
             return self.get_mae(self.srs_evaluator.human_relatedness_cont)
 
-    def evaluate(self):
+    def evaluate(self) -> float:
         assessments = [HumanAssessment.SIMILARITY_CONT, HumanAssessment.RELATEDNESS, HumanAssessment.RELATEDNESS_CONT]
+        scores = []
         for assessment in assessments:
-            print(f'{assessment}: {self.human_assessments(assessment)}')
+            score = self.human_assessments(assessment)
+            scores.append(score)
+            print(f'{assessment}: {score}')
+        return sum(scores)/len(scores)
 
 
 class Evaluation:
-    def __init__(self, embeddings: gensim.models.KeyedVectors,
+    def __init__(self, embeddings: List[Tuple[gensim.models.KeyedVectors, str, str]],
                  umls_mapper: UMLSMapper,
                  umls_evaluator: UMLSEvaluator,
                  ndf_evaluator: NDFEvaluator,
-                 srs_evaluator: SRSEvaluator):
+                 srs_evaluator: SRSEvaluator, benchmarkNames=List[str]):
 
-        self.benchmarks = [
-            CategoryBenchmark(embeddings, umls_mapper, umls_evaluator),
-            SilhouetteCoefficient(embeddings, umls_mapper, umls_evaluator),
-            ChoiBenchmark(embeddings, umls_mapper, umls_evaluator, ndf_evaluator),
-            HumanAssessmentBenchmark(embeddings, umls_mapper, srs_evaluator)
-        ]
+        self.benchmarks = []
+        for embedding in embeddings:
+            CategoryBenchmark(embedding, umls_mapper, umls_evaluator)
+            # self.benchmarks.append(CategoryBenchmark(embedding, umls_mapper, umls_evaluator))
+            # self.benchmarks.append(SilhouetteCoefficient(embedding, umls_mapper, umls_evaluator))
+            # self.benchmarks.append(ChoiBenchmark(embedding, umls_mapper, umls_evaluator, ndf_evaluator))
+            self.benchmarks.append(HumanAssessmentBenchmark(embedding, umls_mapper, srs_evaluator))
+
+        # self.benchmarks = [
+        #     CategoryBenchmark(embeddings[0], umls_mapper, umls_evaluator),
+        #     SilhouetteCoefficient(embeddings[0], umls_mapper, umls_evaluator),
+        #     ChoiBenchmark(embeddings[0], umls_mapper, umls_evaluator, ndf_evaluator),
+        #     HumanAssessmentBenchmark(embeddings[0], umls_mapper, srs_evaluator)
+        # ]
 
     def evaluate(self):
+        tuples = []
         for benchmark in self.benchmarks:
-            print(benchmark.__class__.__name__)
-            benchmark.evaluate()
+            print(benchmark.__class__.__name__, benchmark.dataset, benchmark.algorithm)
+            score = benchmark.evaluate()
+            tuples.append((benchmark.dataset, benchmark.algorithm, benchmark.__class__.__name__, score))
+
+        df = pd.DataFrame(tuples, columns=['Data set', 'Algorithm', 'Benchmark', 'Score'])
+        print(df)
 
 
-def analogies(vectors, start, minus, plus, umls: UMLSMapper):
-    if umls:
-        return vectors.most_similar(positive=[umls.umls_dict[start], umls.umls_dict[plus]],
-                                    negative=[umls.umls_dict[minus]])
-    else:
-        return vectors.most_similar(positive=[start, plus], negative=[minus])
-
-
-def similarities(vectors, word, umls):
-    if umls:
-        return vectors.most_similar(umls.umls_dict[word])
-    else:
-        return vectors.most_similar(word)
+    # def analogies(vectors, start, minus, plus, umls: UMLSMapper):
+#     if umls:
+#         return vectors.most_similar(positive=[umls.umls_dict[start], umls.umls_dict[plus]],
+#                                     negative=[umls.umls_dict[minus]])
+#     else:
+#         return vectors.most_similar(positive=[start, plus], negative=[minus])
+#
+#
+# def similarities(vectors, word, umls):
+#     if umls:
+#         return vectors.most_similar(umls.umls_dict[word])
+#     else:
+#         return vectors.most_similar(word)
 
 
 def main():
     umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
 
-    vecs = Embeddings.load(path="data/no_prep_vecs_test_all.kv")
+    vecs = (Embeddings.load(path="data/no_prep_vecs_test_all.kv"), "GGPONC", "word2vec")
+    # normal_vecs = Word2Vec.load("E:/german.model")
 
+    normal_vecs = (word2vec.KeyedVectors.load_word2vec_format('E:/german.model', binary=True),  "Wikipedia + News 2015", "word2vec")
+
+    # fasttext_model = load_fasttext_model('E://cc.de.300.bin')
+    # fasttext_vecs = (load_facebook_model('E:/cc.de.300.bin'), "common crawl", "fastText")
+    # print(fasttext_vecs[0].vocabulary.)
     umls_evaluator = UMLSEvaluator(from_dir='E:/AML4DH-DATA/UMLS')
 
     ndf_evaluator = NDFEvaluator(from_dir='E:/AML4DH-DATA/NDF')
@@ -486,7 +529,7 @@ def main():
     # benchmark = CategoryBenchmark(vecs, umls_mapper, evaluator)
     # benchmark.evaluate()
 
-    evaluation = Evaluation(vecs, umls_mapper, umls_evaluator, ndf_evaluator, srs_evaluator)
+    evaluation = Evaluation([normal_vecs, vecs], umls_mapper, umls_evaluator, ndf_evaluator, srs_evaluator)
     evaluation.evaluate()
 
     # benchmark.category_benchmark("Nucleotide Sequence")

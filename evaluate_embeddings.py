@@ -493,8 +493,8 @@ def main():
     umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
 
     vecs = (Embeddings.load(path="data/no_prep_vecs_test_all.kv"), "GGPONC", "word2vec")
-    # normal_vecs = Word2Vec.load("E:/german.model")
 
+    # https://devmount.github.io/GermanWordEmbeddings/
     normal_vecs = (word2vec.KeyedVectors.load_word2vec_format('E:/german.model', binary=True),  "Wikipedia + News 2015", "word2vec")
 
     # fasttext_model = load_fasttext_model('E://cc.de.300.bin')

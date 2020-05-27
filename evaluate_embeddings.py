@@ -6,7 +6,7 @@ from typing import Tuple, Dict, Set, Iterable, List, Union
 import pandas as pd
 import gensim
 from tqdm import tqdm
-
+import numpy as np
 from UMLS import UMLSMapper, UMLSEvaluator
 from embeddings import Embeddings
 from evaluation_resource import NDFEvaluator, SRSEvaluator
@@ -52,6 +52,30 @@ class AbstractBenchmark(ABC):
             return -cos
         else:
             return cos
+
+    def get_concept_vector(self, concept) -> Union[np.ndarray, None]:
+        if concept in self.vocab:
+            # print("in", concept,  self.umls_mapper.umls_reverse_dict[concept])
+            return self.vectors.get_vector(concept)
+        else:
+            if concept in self.umls_mapper.umls_reverse_dict:
+                concept_vectors = []
+                for candidate in self.umls_mapper.umls_reverse_dict[concept]:
+                    candidate_tokens = candidate.split()
+                    candidate_vectors = []
+                    for token in candidate_tokens:
+                        if token in self.vocab:
+                            candidate_vectors.append(self.vectors.get_vector(token))
+
+                    if len(candidate_vectors) == len(candidate_tokens):
+                        candidate_vector = sum(candidate_vectors)
+                        concept_vectors.append(candidate_vector)
+
+                if len(concept_vectors) > 0:
+                    concept_vector = sum(concept_vectors) / len(concept_vectors)
+                    # print("not in", concept, self.umls_mapper.umls_reverse_dict[concept])
+                    return concept_vector
+            return None
 
 
 class CategoryBenchmark(AbstractBenchmark):
@@ -397,13 +421,13 @@ class ChoiBenchmark(AbstractBenchmark):
         return sum(results)/len(results), max(results)
 
 
-class HumanAssessment(Enum):
+class HumanAssessmentTypes(Enum):
     RELATEDNESS = "relatedness"
     RELATEDNESS_CONT = "relatedness_cont"
     SIMILARITY_CONT = "similarity_cont"
 
 
-class HumanAssessmentBenchmark(AbstractBenchmark):
+class HumanAssessment(AbstractBenchmark):
     def __init__(self,  embeddings: Tuple[gensim.models.KeyedVectors, str, str],
                  umls_mapper: UMLSMapper,
                  srs_evaluator: SRSEvaluator):
@@ -414,25 +438,36 @@ class HumanAssessmentBenchmark(AbstractBenchmark):
         sigma = []
 
         for concept, other_concepts in human_assessment_dict.items():
-            if concept in self.vocab:
+            concept_vec = self.get_concept_vector(concept)
+            if concept_vec is not None:
                 for other_concept in other_concepts:
-                    if other_concept in self.vocab:
+                    other_concept_vec = self.get_concept_vector(other_concept)
+
+                    if other_concept_vec is not None:
                         distance = abs(human_assessment_dict[concept][other_concept]
-                                       - self.vectors.similarity(concept, other_concept))
+                                       - self.vectors.cosine_similarities(concept_vec,
+                                       np.array([other_concept_vec]))[0])
+                        # .similarity(concept, other_concept))
+                        print(distance)
                         sigma.append(distance)
+            #         else:
+            #             sigma.append(1)
+            # else:
+            #     sigma.append(1)
+
         print(f'found {len(sigma)} assessments in embeddings')
         return sum(sigma)/len(sigma)
 
-    def human_assessments(self, type: HumanAssessment):
-        if type == HumanAssessment.RELATEDNESS:
+    def human_assessments(self, type: HumanAssessmentTypes):
+        if type == HumanAssessmentTypes.RELATEDNESS:
             return self.get_mae(self.srs_evaluator.human_relatedness)
-        elif type == HumanAssessment.SIMILARITY_CONT:
+        elif type == HumanAssessmentTypes.SIMILARITY_CONT:
             return self.get_mae(self.srs_evaluator.human_similarity_cont)
         else:
             return self.get_mae(self.srs_evaluator.human_relatedness_cont)
 
     def evaluate(self) -> float:
-        assessments = [HumanAssessment.SIMILARITY_CONT, HumanAssessment.RELATEDNESS, HumanAssessment.RELATEDNESS_CONT]
+        assessments = [HumanAssessmentTypes.SIMILARITY_CONT, HumanAssessmentTypes.RELATEDNESS, HumanAssessmentTypes.RELATEDNESS_CONT]
         scores = []
         for assessment in assessments:
             score = self.human_assessments(assessment)
@@ -454,7 +489,7 @@ class Evaluation:
             # self.benchmarks.append(CategoryBenchmark(embedding, umls_mapper, umls_evaluator))
             # self.benchmarks.append(SilhouetteCoefficient(embedding, umls_mapper, umls_evaluator))
             # self.benchmarks.append(ChoiBenchmark(embedding, umls_mapper, umls_evaluator, ndf_evaluator))
-            self.benchmarks.append(HumanAssessmentBenchmark(embedding, umls_mapper, srs_evaluator))
+            self.benchmarks.append(HumanAssessment(embedding, umls_mapper, srs_evaluator))
 
         # self.benchmarks = [
         #     CategoryBenchmark(embeddings[0], umls_mapper, umls_evaluator),

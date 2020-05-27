@@ -16,6 +16,7 @@ from gensim.models.fasttext import load_facebook_model
 from gensim.models.word2vec import Word2Vec
 import gensim.models.keyedvectors as word2vec
 
+
 def revert_list_dict(dictionary: Dict[str, Set[str]], filter_collection: Iterable = None) -> Dict[str, Set[str]]:
     reverted_dictionary = defaultdict(set)
     for key, values in dictionary.items():
@@ -42,16 +43,30 @@ class AbstractBenchmark(ABC):
     def evaluate(self) -> float:
         pass
 
-    def cosine(self, word1=None, word2=None, c1=None, c2=None):
+    def cosine(self, word1: str = None, word2: str = None,
+               concept1: str = None, concept2: str = None,
+               vector1: np.ndarray = None, vector2: np.ndarray = None) -> Union[float, None]:
+        cos = None
 
-        if word1:
+        if word1 and word2:
             cos = self.vectors.similarity(self.umls_mapper.umls_dict[word1], self.umls_mapper.umls_dict[word2])
-        else:
-            cos = self.vectors.similarity(c1, c2)
-        if cos < 0:
-            return -cos
-        else:
-            return cos
+
+        if concept1 and concept2:
+            if concept1 in self.vocab and concept2 in self.vocab:
+                cos = self.vectors.similarity(concept1, concept2)
+            else:
+
+                vector1 = self.get_concept_vector(concept1)
+                vector2 = self.get_concept_vector(concept2)
+                # print(concept1, concept2, vector1, vector2)
+
+        if vector1 is not None and vector2 is not None:
+
+            cos = self.vectors.cosine_similarities(vector1, np.array([vector2]))[0]
+
+        if cos:
+            cos = -cos if cos < 0 else cos
+        return cos
 
     def get_concept_vector(self, concept) -> Union[np.ndarray, None]:
         if concept in self.vocab:
@@ -91,7 +106,6 @@ class CategoryBenchmark(AbstractBenchmark):
 
     def evaluate(self) -> float:
         score = self.all_categories_benchmark()
-        print(score)
         return score
 
     def pairwise_cosine(self, concepts1, concepts2=None):
@@ -102,11 +116,13 @@ class CategoryBenchmark(AbstractBenchmark):
             for i, concept1 in enumerate(concepts1):
                 for j, concept2 in enumerate(concepts2):
                     if j > i:
-                        c = self.cosine(c1=concept1, c2=concept2)
-                        if c < 0:
-                            c = -c
-                        s += c
-                        count += 1
+
+                        cos_sim = self.cosine(concept1=concept1, concept2=concept2)
+                        if cos_sim:
+                            if cos_sim < 0:
+                                cos_sim = -cos_sim
+                            s += cos_sim
+                            count += 1
 
             return s / count
         else:
@@ -114,10 +130,10 @@ class CategoryBenchmark(AbstractBenchmark):
             count = 0
             for i, concept1 in enumerate(concepts1):
                 for j, concept2 in enumerate(concepts2):
-                    c = self.cosine(c1=concept1, c2=concept2)
-                    if c < 0:
-                        c = -c
-                    s += c
+                    cos_sim = self.cosine(concept1=concept1, concept2=concept2)
+                    if cos_sim < 0:
+                        cos_sim = -cos_sim
+                    s += cos_sim
                     count += 1
             return s / count
 
@@ -145,6 +161,7 @@ class CategoryBenchmark(AbstractBenchmark):
     def all_categories_benchmark(self):
 
         distances = []
+        print(self.category2concepts.keys())
         categories = tqdm(self.category2concepts.keys())
         for category in categories:
             within, out, distance = self.category_benchmark(category)
@@ -168,7 +185,6 @@ class SilhouetteCoefficient(AbstractBenchmark):
 
     def evaluate(self) -> float:
         score = self.silhouette_coefficient()
-        print(score)
         return score
 
     def silhouette(self, term, category):
@@ -177,7 +193,7 @@ class SilhouetteCoefficient(AbstractBenchmark):
             for reference_point in same_cluster:
                 if datapoint == reference_point:
                     continue
-                sigma_ai += self.cosine(c1=datapoint, c2=reference_point)
+                sigma_ai += self.cosine(concept1=datapoint, concept2=reference_point)
 
             return sigma_ai / (len(same_cluster) - 1)
 
@@ -186,7 +202,7 @@ class SilhouetteCoefficient(AbstractBenchmark):
             for other_cluster in other_clusters:
                 sigma_bi = 0
                 for other_reference_point in other_cluster:
-                    sigma_bi += self.cosine(c1=datapoint, c2=other_reference_point)
+                    sigma_bi += self.cosine(concept1=datapoint, concept2=other_reference_point)
                 sigma_bi = sigma_bi / len(other_cluster)
                 distances.append(sigma_bi)
             # return sum(distances)/len(distances) # alternative?
@@ -239,7 +255,6 @@ class EmbeddingSilhouetteCoefficient(AbstractBenchmark):
 
     def evaluate(self):
         score = self.silhouette_coefficient()
-        print(score)
         return score
 
     def silhouette(self, term, category):
@@ -248,7 +263,7 @@ class EmbeddingSilhouetteCoefficient(AbstractBenchmark):
             for reference_point in same_cluster:
                 if datapoint == reference_point:
                     continue
-                sigma_ai += self.cosine(c1=datapoint, c2=reference_point)
+                sigma_ai += self.cosine(concept1=datapoint, concept2=reference_point)
 
             return sigma_ai / (len(same_cluster) - 1)
 
@@ -257,7 +272,7 @@ class EmbeddingSilhouetteCoefficient(AbstractBenchmark):
             for other_cluster in other_clusters:
                 sigma_bi = 0
                 for other_reference_point in other_cluster:
-                    sigma_bi += self.cosine(c1=datapoint, c2=other_reference_point)
+                    sigma_bi += self.cosine(concept1=datapoint, concept2=other_reference_point)
                 sigma_bi = sigma_bi / len(other_cluster)
                 distances.append(sigma_bi)
             # return sum(distances)/len(distances) # alternative?
@@ -445,10 +460,8 @@ class HumanAssessment(AbstractBenchmark):
 
                     if other_concept_vec is not None:
                         distance = abs(human_assessment_dict[concept][other_concept]
-                                       - self.vectors.cosine_similarities(concept_vec,
-                                       np.array([other_concept_vec]))[0])
+                                       - self.cosine(vector1=concept_vec, vector2=other_concept_vec))
                         # .similarity(concept, other_concept))
-                        print(distance)
                         sigma.append(distance)
             #         else:
             #             sigma.append(1)
@@ -485,18 +498,11 @@ class Evaluation:
 
         self.benchmarks = []
         for embedding in embeddings:
-            CategoryBenchmark(embedding, umls_mapper, umls_evaluator)
+            # CategoryBenchmark(embedding, umls_mapper, umls_evaluator)
             # self.benchmarks.append(CategoryBenchmark(embedding, umls_mapper, umls_evaluator))
             # self.benchmarks.append(SilhouetteCoefficient(embedding, umls_mapper, umls_evaluator))
             # self.benchmarks.append(ChoiBenchmark(embedding, umls_mapper, umls_evaluator, ndf_evaluator))
             self.benchmarks.append(HumanAssessment(embedding, umls_mapper, srs_evaluator))
-
-        # self.benchmarks = [
-        #     CategoryBenchmark(embeddings[0], umls_mapper, umls_evaluator),
-        #     SilhouetteCoefficient(embeddings[0], umls_mapper, umls_evaluator),
-        #     ChoiBenchmark(embeddings[0], umls_mapper, umls_evaluator, ndf_evaluator),
-        #     HumanAssessmentBenchmark(embeddings[0], umls_mapper, srs_evaluator)
-        # ]
 
     def evaluate(self):
         tuples = []
@@ -508,6 +514,14 @@ class Evaluation:
         df = pd.DataFrame(tuples, columns=['Data set', 'Algorithm', 'Benchmark', 'Score'])
         print(df)
 
+        used_benchmarks_dict = defaultdict(list)
+        for i, row in df.iterrows():
+            used_benchmarks_dict["Data set"].append(row["Data set"])
+            used_benchmarks_dict["Algorithm"].append(row["Algorithm"])
+            used_benchmarks_dict[row["Benchmark"]].append(row["Score"])
+
+        df_table = pd.DataFrame.from_dict(used_benchmarks_dict)
+        print(df_table)
 
     # def analogies(vectors, start, minus, plus, umls: UMLSMapper):
 #     if umls:
@@ -524,6 +538,28 @@ class Evaluation:
 #         return vectors.most_similar(word)
 
 
+def assign_concepts_to_vecs(vectors: gensim.models.KeyedVectors, umls_mapper: UMLSMapper):
+    addable_concepts = []
+    addable_vectors = []
+    for concept, terms in umls_mapper.umls_reverse_dict.items():
+        concept_vec = []
+        for term in terms:
+            term_tokens = term.split()
+            token_vecs = []
+            for token in term_tokens:
+                if token in vectors.vocab:
+                    token_vecs.append(vectors.get_vector(token))
+            if len(term_tokens) == len(token_vecs):
+                term_vector = sum(token_vecs)
+                concept_vec.append(term_vector)
+        if len(concept_vec) > 0:
+            addable_concepts.append(concept)
+            addable_vectors.append(sum(concept_vec)/len(concept_vec))
+    vectors.add(addable_concepts, addable_vectors)
+    print(len(addable_concepts))
+    return vectors
+
+
 def main():
     umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
 
@@ -532,6 +568,7 @@ def main():
     # https://devmount.github.io/GermanWordEmbeddings/
     normal_vecs = (word2vec.KeyedVectors.load_word2vec_format('E:/german.model', binary=True),  "Wikipedia + News 2015", "word2vec")
 
+    normal_vecs = (assign_concepts_to_vecs(normal_vecs[0], umls_mapper),  "Wikipedia + News 2015", "word2vec")
     # fasttext_model = load_fasttext_model('E://cc.de.300.bin')
     # fasttext_vecs = (load_facebook_model('E:/cc.de.300.bin'), "common crawl", "fastText")
     # print(fasttext_vecs[0].vocabulary.)

@@ -5,8 +5,13 @@ from enum import Enum
 from typing import Tuple, Dict, Set, Iterable, List, Union
 import pandas as pd
 import gensim
+from scipy.stats import mannwhitneyu
+from gensim import matutils
+from numpy import dot
 from tqdm import tqdm
 import numpy as np
+
+import constant
 from UMLS import UMLSMapper, UMLSEvaluator
 from embeddings import Embeddings
 from evaluation_resource import NDFEvaluator, SRSEvaluator
@@ -24,6 +29,8 @@ def revert_list_dict(dictionary: Dict[str, Set[str]], filter_collection: Iterabl
             if not filter_collection or value in filter_collection:
                 reverted_dictionary[value].add(key)
     return reverted_dictionary
+
+
 
 
 class AbstractBenchmark(ABC):
@@ -67,6 +74,21 @@ class AbstractBenchmark(ABC):
         if cos:
             cos = -cos if cos < 0 else cos
         return cos
+
+    def similarity_matrix(self, vectors: List[np.ndarray]) -> np.ndarray:
+        matrix = []
+        for vector_1 in vectors:
+            row = []
+            for vector_2 in vectors:
+                row.append(self.cosine(vector1=vector_1, vector2=vector_2))
+            matrix.append(np.array(row))
+        return np.array(matrix)
+
+
+    def n_similarity(self, v1: List[np.ndarray], v2: List[np.ndarray]) -> np.ndarray:
+        if not(len(v1) and len(v2)):
+            raise ZeroDivisionError('At least one of the passed list is empty.')
+        return np.dot(matutils.unitvec(np.array(v1).mean(axis=0)), matutils.unitvec(np.array(v2).mean(axis=0)))
 
     def get_concept_vector(self, concept) -> Union[np.ndarray, None]:
         if concept in self.vocab:
@@ -489,6 +511,136 @@ class HumanAssessment(AbstractBenchmark):
         return sum(scores)/len(scores)
 
 
+class SemanticTypeBeam(AbstractBenchmark):
+    def __init__(self,  embeddings: Tuple[gensim.models.KeyedVectors, str, str],
+                 umls_mapper: UMLSMapper,
+                 umls_evaluator: UMLSEvaluator):
+        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)
+
+    def bootstrap_samples(self, same_category_terms, different_category_terms, bootstraps: int = 10000, eps: float = 1e-6) -> np.ndarray:
+        # a = 1:nrow(query_db)
+
+        X = np.random.choice(list(same_category_terms.keys()), size=bootstraps, replace=True, p=None)
+        # a = 1:nrow(results_db)
+        Y = np.random.choice(list(different_category_terms.keys()), size=bootstraps, replace=True, p=None)
+        # print(X, Y)
+        X = np.array([same_category_terms[key] for key in X])
+        Y = np.array([different_category_terms[key] for key in Y])
+        # print(X, Y)
+        # query_rows = sample(x=1:nrow(query_db),size=bootstraps,replace=TRUE)
+        # results_rows = sample(x=1:nrow(results_db),size=bootstraps,replace=TRUE)
+        # X = query_db[query_rows,]
+        # Y = results_db[results_rows,]
+        print(X.shape, Y.shape)
+        # prevent division by zero by assigning at least eps of value
+        t1 = np.maximum(np.sqrt(np.cross(X, X, axisa=0, axisb=0)), eps)
+        t2 = np.maximum(np.sqrt(np.cross(X, X, axisa=0, axisb=0)), eps)
+
+        # t1 = pmax(sqrt(apply(X, 1, crossprod)),eps)
+        # t2 = pmax(sqrt(apply(Y, 1, crossprod)),eps)
+
+        X = X/t1
+        Y = Y/t2
+
+        # bootstrap_scores = rowSums(X * Y)
+        bootstrap_scores = np.sum(X * Y, axis=0)
+        print(bootstrap_scores)
+        return bootstrap_scores
+
+    def real_beam(self):
+        semantic_types = self.umls_evaluator.category2concepts.keys()
+        all_concepts = set(self.umls_evaluator.concept2category.keys())
+        power = 0
+        for semantic_type in tqdm(semantic_types, total=len(semantic_types)):
+            concepts_of_semantic_type = list(self.umls_evaluator.category2concepts[semantic_type])
+            concepts_not_of_semantic_type = list(all_concepts.difference(concepts_of_semantic_type))
+            # sim_scores = self.vectors.n_similarity(concepts_of_semantic_type, concepts_of_semantic_type)
+            semantic_type_vectors = {concept: self.get_concept_vector(concept) for concept in concepts_of_semantic_type}
+            not_semantic_type_vectors = {concept: self.get_concept_vector(concept) for concept in
+                                         concepts_not_of_semantic_type}
+
+            semantic_type_vectors = {concept: vector for concept, vector in semantic_type_vectors.items() if
+                                     vector is not None}
+            not_semantic_type_vectors = {concept: vector for concept, vector in not_semantic_type_vectors.items() if
+                                         vector is not None}
+
+            # sim_scores = self.n_similarity(semantic_type_vectors, not_semantic_type_vectors)
+            sim_scores = self.similarity_matrix(list(semantic_type_vectors.values()))
+            print(sim_scores.shape)
+            observed_scores = np.triu(sim_scores)
+
+            print(observed_scores)
+
+            null_scores = self.bootstrap_samples(semantic_type_vectors, not_semantic_type_vectors)
+
+            sig_threshold = np.quantile(null_scores, p=1 - constant.SIG_LEVEL)
+
+            num_positives = len(
+                [observed_scores for observed_score in observed_scores if observed_score > sig_threshold])
+            power = num_positives / len(observed_scores)
+
+        return power
+
+    def own_beam(self):
+        def sample(terms: Dict[str, np.ndarray], bootstraps: int = 10):
+            sampled = np.random.choice(list(terms.keys()), size=bootstraps, replace=True, p=None)
+            sampled_vecs = [terms[key] for key in sampled]
+            return sampled_vecs
+
+        semantic_types = self.umls_evaluator.category2concepts.keys()
+        all_concepts = set(self.umls_evaluator.concept2category.keys())
+        power = 0
+        semantic_sum = 0
+        not_semantic_sum = 0
+        tqdm_semantic_types = tqdm(semantic_types, total=len(semantic_types))
+        for semantic_type in tqdm_semantic_types:
+            concepts_of_semantic_type = list(self.umls_evaluator.category2concepts[semantic_type])
+            concepts_not_of_semantic_type = list(all_concepts.difference(concepts_of_semantic_type))
+
+            semantic_type_vectors = {concept: self.get_concept_vector(concept) for concept in concepts_of_semantic_type}
+            not_semantic_type_vectors = {concept: self.get_concept_vector(concept) for concept in
+                                         concepts_not_of_semantic_type}
+
+            semantic_type_vectors = {concept: vector for concept, vector in semantic_type_vectors.items() if
+                                     vector is not None}
+            not_semantic_type_vectors = {concept: vector for concept, vector in not_semantic_type_vectors.items() if
+                                         vector is not None}
+
+            if len(semantic_type_vectors) == 0:
+                not_semantic_sum += 1
+                continue
+            sample_semantic = sample(semantic_type_vectors)
+            sample_not_semantic = sample(not_semantic_type_vectors)
+
+            # print(np.triu(self.similarity_matrix(sample_not_semantic), k=1))
+            semantic_matrix = self.similarity_matrix(sample_semantic)
+            not_semantic_matrix = self.similarity_matrix(sample_not_semantic)
+
+            semantic_cosines = semantic_matrix[np.triu_indices(semantic_matrix.shape[0], k=1)]
+            not_semantic_cosines = not_semantic_matrix[np.triu_indices(not_semantic_matrix.shape[0], k=1)]
+            semantic_mean = semantic_cosines.mean()
+            not_semantic_mean = not_semantic_cosines.mean()
+
+            _, p_value = mannwhitneyu(semantic_cosines, not_semantic_cosines)
+            if p_value < constant.SIG_LEVEL and semantic_mean > not_semantic_mean:
+                semantic_sum += 1
+            else:
+                not_semantic_sum += 1
+
+            # semantic_mean - not_semantic_mean
+            current_power = semantic_sum / (semantic_sum + not_semantic_sum)
+            tqdm_semantic_types.set_description(f"{semantic_type}: {current_power:.4f}")
+            tqdm_semantic_types.refresh()  # to show immediately the update
+
+        power = semantic_sum / (semantic_sum + not_semantic_sum)
+        return power
+
+    def evaluate(self) -> float:
+        # power = self.real_beam()
+        power = self.own_beam()
+        return power
+
+
 class Evaluation:
     def __init__(self, embeddings: List[Tuple[gensim.models.KeyedVectors, str, str]],
                  umls_mapper: UMLSMapper,
@@ -498,8 +650,8 @@ class Evaluation:
 
         self.benchmarks = []
         for embedding in embeddings:
-            # CategoryBenchmark(embedding, umls_mapper, umls_evaluator)
             # self.benchmarks.append(CategoryBenchmark(embedding, umls_mapper, umls_evaluator))
+            self.benchmarks.append(SemanticTypeBeam(embedding, umls_mapper, umls_evaluator))
             # self.benchmarks.append(SilhouetteCoefficient(embedding, umls_mapper, umls_evaluator))
             # self.benchmarks.append(ChoiBenchmark(embedding, umls_mapper, umls_evaluator, ndf_evaluator))
             self.benchmarks.append(HumanAssessment(embedding, umls_mapper, srs_evaluator))
@@ -513,7 +665,7 @@ class Evaluation:
 
         df = pd.DataFrame(tuples, columns=['Data set', 'Algorithm', 'Benchmark', 'Score'])
         print(df)
-
+        df.to_csv('benchmark_results1.csv', index=False, encoding="utf-8")
         used_benchmarks_dict = defaultdict(list)
         for i, row in df.iterrows():
             used_benchmarks_dict["Data set"].append(row["Data set"])
@@ -522,6 +674,7 @@ class Evaluation:
 
         df_table = pd.DataFrame.from_dict(used_benchmarks_dict)
         print(df_table)
+        df.to_csv('benchmark_results2.csv', index=False, encoding="utf-8")
 
     # def analogies(vectors, start, minus, plus, umls: UMLSMapper):
 #     if umls:
@@ -564,7 +717,6 @@ def main():
     umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
 
     vecs = (Embeddings.load(path="data/no_prep_vecs_test_all.kv"), "GGPONC", "word2vec")
-
     # https://devmount.github.io/GermanWordEmbeddings/
     normal_vecs = (word2vec.KeyedVectors.load_word2vec_format('E:/german.model', binary=True),  "Wikipedia + News 2015", "word2vec")
 
@@ -601,7 +753,7 @@ def main():
     # benchmark = CategoryBenchmark(vecs, umls_mapper, evaluator)
     # benchmark.evaluate()
 
-    evaluation = Evaluation([normal_vecs, vecs], umls_mapper, umls_evaluator, ndf_evaluator, srs_evaluator)
+    evaluation = Evaluation([vecs, normal_vecs], umls_mapper, umls_evaluator, ndf_evaluator, srs_evaluator)
     evaluation.evaluate()
 
     # benchmark.category_benchmark("Nucleotide Sequence")

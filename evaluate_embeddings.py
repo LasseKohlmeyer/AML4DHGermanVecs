@@ -620,7 +620,7 @@ class SemanticTypeBeam(AbstractBenchmark):
             not_semantic_cosines = not_semantic_matrix[np.triu_indices(not_semantic_matrix.shape[0], k=1)]
             semantic_mean = semantic_cosines.mean()
             not_semantic_mean = not_semantic_cosines.mean()
-
+            # fixme: adapt to real beam
             _, p_value = mannwhitneyu(semantic_cosines, not_semantic_cosines)
             if p_value < constant.SIG_LEVEL and semantic_mean > not_semantic_mean:
                 semantic_sum += 1
@@ -651,7 +651,7 @@ class Evaluation:
         self.benchmarks = []
         for embedding in embeddings:
             # self.benchmarks.append(CategoryBenchmark(embedding, umls_mapper, umls_evaluator))
-            self.benchmarks.append(SemanticTypeBeam(embedding, umls_mapper, umls_evaluator))
+            # self.benchmarks.append(SemanticTypeBeam(embedding, umls_mapper, umls_evaluator))
             # self.benchmarks.append(SilhouetteCoefficient(embedding, umls_mapper, umls_evaluator))
             # self.benchmarks.append(ChoiBenchmark(embedding, umls_mapper, umls_evaluator, ndf_evaluator))
             self.benchmarks.append(HumanAssessment(embedding, umls_mapper, srs_evaluator))
@@ -661,9 +661,10 @@ class Evaluation:
         for benchmark in self.benchmarks:
             print(benchmark.__class__.__name__, benchmark.dataset, benchmark.algorithm)
             score = benchmark.evaluate()
-            tuples.append((benchmark.dataset, benchmark.algorithm, benchmark.__class__.__name__, score))
+            number_concepts = len(set(benchmark.umls_mapper.umls_reverse_dict.keys()).intersection(set(benchmark.vocab)))
+            tuples.append((benchmark.dataset, benchmark.algorithm, benchmark.__class__.__name__, score,number_concepts))
 
-        df = pd.DataFrame(tuples, columns=['Data set', 'Algorithm', 'Benchmark', 'Score'])
+        df = pd.DataFrame(tuples, columns=['Data set', 'Algorithm', 'Benchmark', 'Score', '# Concepts'])
         print(df)
         df.to_csv('benchmark_results1.csv', index=False, encoding="utf-8")
         used_benchmarks_dict = defaultdict(list)
@@ -671,6 +672,7 @@ class Evaluation:
             used_benchmarks_dict["Data set"].append(row["Data set"])
             used_benchmarks_dict["Algorithm"].append(row["Algorithm"])
             used_benchmarks_dict[row["Benchmark"]].append(row["Score"])
+            used_benchmarks_dict["# Concepts"].append(row["# Concepts"])
 
         df_table = pd.DataFrame.from_dict(used_benchmarks_dict)
         print(df_table)
@@ -716,11 +718,21 @@ def assign_concepts_to_vecs(vectors: gensim.models.KeyedVectors, umls_mapper: UM
 def main():
     umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
 
-    vecs = (Embeddings.load(path="data/no_prep_vecs_test_all.kv"), "GGPONC", "word2vec")
+    ggponc_vecs = (Embeddings.load(path="data/no_prep_vecs_test_all.kv"), "GGPONC", "word2vec")
+    ggponc_vecs_fasttext = (Embeddings.load(path="data/GGPONC_fastText_all.kv"), "GGPONC", "fastText")
     # https://devmount.github.io/GermanWordEmbeddings/
-    normal_vecs = (word2vec.KeyedVectors.load_word2vec_format('E:/german.model', binary=True),  "Wikipedia + News 2015", "word2vec")
+    # pretrained_wiki_news_vecs = (word2vec.KeyedVectors.load_word2vec_format('E:/german.model', binary=True),
+    #                              "Wikipedia + News 2015", "word2vec")
+    #
+    # pretrained_wiki_news_vecs = (assign_concepts_to_vecs(pretrained_wiki_news_vecs[0], umls_mapper),
+    #                              "Wikipedia + News 2015", "word2vec")
 
-    normal_vecs = (assign_concepts_to_vecs(normal_vecs[0], umls_mapper),  "Wikipedia + News 2015", "word2vec")
+    news_vecs = (Embeddings.load(path="data/60K_news_all.kv"), "News 60K", "word2vec")
+    news_vecs_big = (Embeddings.load(path="data/500K_news_all.kv"), "News 500K", "word2vec")
+    news_vecs_big_3M = (Embeddings.load(path="data/3M_news_all.kv"), "News 3M", "word2vec")
+    news_vecs_fasttext = (Embeddings.load(path="data/60K_news_all.kv"), "News 60K", "fastText")
+
+
     # fasttext_model = load_fasttext_model('E://cc.de.300.bin')
     # fasttext_vecs = (load_facebook_model('E:/cc.de.300.bin'), "common crawl", "fastText")
     # print(fasttext_vecs[0].vocabulary.)
@@ -732,35 +744,37 @@ def main():
 
     print(srs_evaluator.human_relatedness)
 
-    # for c, v in vecs.most_similar("Cisplatin"):
+    # for c, v in ggponc_vecs.most_similar("Cisplatin"):
     #     print(umls_mapper.un_umls(c), v)
     #
     #
-    # # for c, v in vecs.most_similar(umls_mapper.umls_dict["Cisplatin"]):
+    # # for c, v in ggponc_vecs.most_similar(umls_mapper.umls_dict["Cisplatin"]):
     # #     print(umls_mapper.un_umls(c), v)
     #
-    # for c, v in analogies(vecs, "Asthma", "Lunge", "Herz", umls=umls_mapper):
+    # for c, v in analogies(ggponc_vecs, "Asthma", "Lunge", "Herz", umls=umls_mapper):
     #     print(umls_mapper.un_umls(c), v)
     #
-    # for c, v in similarities(vecs, "Hepatitis", umls=umls_mapper):
+    # for c, v in similarities(ggponc_vecs, "Hepatitis", umls=umls_mapper):
     #     print(umls_mapper.un_umls(c), v)
     #
-    # for c, v in similarities(vecs, "Cisplatin", umls=umls_mapper):
+    # for c, v in similarities(ggponc_vecs, "Cisplatin", umls=umls_mapper):
     #     print(umls_mapper.un_umls(c), v)
 
-    # print([(umls_mapper.un_umls(c), Embedding(umls_mapper.un_umls(c), vecs[c])) for c in vecs.vocab])
+    # print([(umls_mapper.un_umls(c), Embedding(umls_mapper.un_umls(c), ggponc_vecs[c])) for c in ggponc_vecs.vocab])
 
-    # benchmark = CategoryBenchmark(vecs, umls_mapper, evaluator)
+    # benchmark = CategoryBenchmark(ggponc_vecs, umls_mapper, evaluator)
     # benchmark.evaluate()
 
-    evaluation = Evaluation([vecs, normal_vecs], umls_mapper, umls_evaluator, ndf_evaluator, srs_evaluator)
+    evaluation = Evaluation([news_vecs, news_vecs_big, news_vecs_fasttext, news_vecs_big_3M,
+                             ggponc_vecs, ggponc_vecs_fasttext],
+                            umls_mapper, umls_evaluator, ndf_evaluator, srs_evaluator)
     evaluation.evaluate()
 
     # benchmark.category_benchmark("Nucleotide Sequence")
 
     # emb = EmbeddingSet( {umls_mapper.un_umls(c, single_return=True): Embedding(umls_mapper.un_umls(c,
-    # single_return=True), vecs[c]) for c in vecs.vocab}) # emb = EmbeddingSet({c: Embedding(c, vecs[c]) for c in
-    # vecs.vocab})
+    # single_return=True), ggponc_vecs[c]) for c in ggponc_vecs.vocab}) # emb = EmbeddingSet({c: Embedding(c, ggponc_vecs[c]) for c in
+    # ggponc_vecs.vocab})
     #
     # emb.plot_interactive("Fibroblasten", "Fremdkörper")
 

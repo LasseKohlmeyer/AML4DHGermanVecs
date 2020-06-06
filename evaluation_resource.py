@@ -16,10 +16,10 @@ class EvaluationResource(ABC):
         if from_dir:
             json_path = os.path.join(from_dir, json_path)
             if os.path.exists(json_path):
-                print(f"initialize {self.__class__.__name__}... Load json")
+                print(f"initialize {self.__class__.__name__}... Load cached json of {from_dir}")
                 self.set_attributes(*self.load_from_json(json_path))
             else:
-                print(f"initialize {self.__class__.__name__}... Load dir")
+                print(f"initialize {self.__class__.__name__}... Load dir {from_dir}")
                 self.set_attributes(*self.load_semantics(from_dir))
                 self.save_as_json(path=json_path)
 

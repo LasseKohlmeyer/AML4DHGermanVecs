@@ -8,6 +8,9 @@ import pandas as pd
 
 
 class DataHandler:
+    @staticmethod
+    def path_exists(path: str) -> bool:
+        return os.path.isfile(path)
 
     @staticmethod
     def lines_from_file(path: str, encoding="utf-8") -> List[str]:
@@ -48,7 +51,7 @@ class DataHandler:
 
     @staticmethod
     def save(file_path, content):
-        with open(file_path, 'w') as the_file:
+        with open(file_path, 'w', encoding="utf-8") as the_file:
             the_file.write(content)
 
     @staticmethod

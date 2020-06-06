@@ -720,6 +720,7 @@ def main():
 
     ggponc_vecs = (Embeddings.load(path="data/no_prep_vecs_test_all.kv"), "GGPONC", "word2vec")
     ggponc_vecs_fasttext = (Embeddings.load(path="data/GGPONC_fastText_all.kv"), "GGPONC", "fastText")
+    ggponc_vecs_glove = (Embeddings.load(path="data/GGPONC_glove_all.kv"), "GGPONC", "Glove")
     # https://devmount.github.io/GermanWordEmbeddings/
     # pretrained_wiki_news_vecs = (word2vec.KeyedVectors.load_word2vec_format('E:/german.model', binary=True),
     #                              "Wikipedia + News 2015", "word2vec")
@@ -731,6 +732,10 @@ def main():
     news_vecs_big = (Embeddings.load(path="data/500K_news_all.kv"), "News 500K", "word2vec")
     news_vecs_big_3M = (Embeddings.load(path="data/3M_news_all.kv"), "News 3M", "word2vec")
     news_vecs_fasttext = (Embeddings.load(path="data/60K_news_all.kv"), "News 60K", "fastText")
+    news_vecs_glove = (Embeddings.load(path="data/60K_news_glove_all.kv"), "News 60K", "Glove")
+
+    jsyncc_vecs= (Embeddings.load(path="data/JSynCC_all.kv"), "JSynCC", "word2vec")
+    pubmed_vecs = (Embeddings.load(path="data/PubMed_all.kv"), "PubMed", "word2vec")
 
 
     # fasttext_model = load_fasttext_model('E://cc.de.300.bin')
@@ -765,8 +770,9 @@ def main():
     # benchmark = CategoryBenchmark(ggponc_vecs, umls_mapper, evaluator)
     # benchmark.evaluate()
 
-    evaluation = Evaluation([news_vecs, news_vecs_big, news_vecs_fasttext, news_vecs_big_3M,
-                             ggponc_vecs, ggponc_vecs_fasttext],
+    evaluation = Evaluation([news_vecs, news_vecs_big, news_vecs_big_3M, news_vecs_fasttext, news_vecs_glove,
+                             ggponc_vecs, ggponc_vecs_fasttext, ggponc_vecs_glove,
+                             jsyncc_vecs, pubmed_vecs],
                             umls_mapper, umls_evaluator, ndf_evaluator, srs_evaluator)
     evaluation.evaluate()
 

@@ -95,7 +95,7 @@ def sentence_data2vec(path: str, embedding_name: str,
 
     # data_sentences = umls_mapper.standardize_documents(data_sentences)
     # data_sentences = umls_mapper.replace_documents_with_umls(data_sentences)
-    sents = [data_sentences[20124], data_sentences[20139]]
+    # sents = [data_sentences[20124], data_sentences[20139]]
     data_sentences = umls_mapper.replace_documents_with_spacy(data_sentences)
     print(data_sentences[:10])
     # for s in data_sentences:
@@ -123,6 +123,11 @@ def main():
     #                   embeddings_algorithm="fastText",
     #                   number_sentences=60000)
 
+    # sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/deu_news_2015_3M-sentences.txt",
+    #                   embedding_name="60K_news_Glove",
+    #                   embeddings_algorithm="Glove",
+    #                   number_sentences=60000)
+
     # GGPONC
     # sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
     #                   embedding_name="GGPONC",
@@ -132,9 +137,9 @@ def main():
     #                   embedding_name="GGPONC_fastText",
     #                   embeddings_algorithm="fastText")
 
-    sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
-                      embedding_name="GGPONC_glove",
-                      embeddings_algorithm="Glove")
+    # sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
+    #                   embedding_name="GGPONC_glove",
+    #                   embeddings_algorithm="Glove")
 
     # JSYNC
     # sentence_data2vec(path="E:/AML4DH-DATA/JSynCC/jsynncc-sentences.txt",
@@ -142,6 +147,13 @@ def main():
     #                   embeddings_algorithm="word2vec")
 
     # German PubMed
+    path = "E:/AML4DH-DATA/german_pubmed/all_sentences.txt"
+    if not DataHandler.path_exists(path):
+        DataHandler.read_files_and_save_sentences_to_dir("E:\AML4DH-DATA\german_pubmed")
+
+    sentence_data2vec(path=path,
+                      embedding_name="PubMed",
+                      embeddings_algorithm="word2vec")
 
 
     # # load sentences

@@ -225,7 +225,7 @@ class Embeddings:
 
     @staticmethod
     def load(path: str) -> gensim.models.KeyedVectors:
-        print("load embedding...")
+        print(f"load embedding of file {path}...")
         return gensim.models.KeyedVectors.load(path)
 
     @staticmethod

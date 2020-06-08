@@ -127,6 +127,7 @@ class CategoryBenchmark(AbstractBenchmark):
         self.category2concepts = revert_list_dict(self.concept2category)
 
     def evaluate(self) -> float:
+        # score = 0.999
         score = self.all_categories_benchmark()
         return score
 
@@ -650,7 +651,7 @@ class Evaluation:
 
         self.benchmarks = []
         for embedding in embeddings:
-            # self.benchmarks.append(CategoryBenchmark(embedding, umls_mapper, umls_evaluator))
+            self.benchmarks.append(CategoryBenchmark(embedding, umls_mapper, umls_evaluator))
             # self.benchmarks.append(SemanticTypeBeam(embedding, umls_mapper, umls_evaluator))
             # self.benchmarks.append(SilhouetteCoefficient(embedding, umls_mapper, umls_evaluator))
             # self.benchmarks.append(ChoiBenchmark(embedding, umls_mapper, umls_evaluator, ndf_evaluator))
@@ -662,21 +663,28 @@ class Evaluation:
             print(benchmark.__class__.__name__, benchmark.dataset, benchmark.algorithm)
             score = benchmark.evaluate()
             number_concepts = len(set(benchmark.umls_mapper.umls_reverse_dict.keys()).intersection(set(benchmark.vocab)))
-            tuples.append((benchmark.dataset, benchmark.algorithm, benchmark.__class__.__name__, score,number_concepts))
+            tuples.append((benchmark.dataset, benchmark.algorithm, benchmark.__class__.__name__, score, number_concepts))
 
         df = pd.DataFrame(tuples, columns=['Data set', 'Algorithm', 'Benchmark', 'Score', '# Concepts'])
         print(df)
-        df.to_csv('benchmark_results1.csv', index=False, encoding="utf-8")
+        df.to_csv('data/benchmark_results1.csv', index=False, encoding="utf-8")
         used_benchmarks_dict = defaultdict(list)
         for i, row in df.iterrows():
             used_benchmarks_dict["Data set"].append(row["Data set"])
             used_benchmarks_dict["Algorithm"].append(row["Algorithm"])
-            used_benchmarks_dict[row["Benchmark"]].append(row["Score"])
             used_benchmarks_dict["# Concepts"].append(row["# Concepts"])
+            used_benchmarks_dict[row["Benchmark"]].append(row["Score"])
+
+
+        number_benchmarks = len(set(df["Benchmark"]))
+        reformat = ["Data set", "Algorithm", "# Concepts"]
+        for column in reformat:
+            used_benchmarks_dict[column] = [entry for i, entry in enumerate(used_benchmarks_dict[column])
+                                            if i % number_benchmarks == 0]
 
         df_table = pd.DataFrame.from_dict(used_benchmarks_dict)
         print(df_table)
-        df.to_csv('benchmark_results2.csv', index=False, encoding="utf-8")
+        df_table.to_csv('data/benchmark_results2.csv', index=False, encoding="utf-8")
 
     # def analogies(vectors, start, minus, plus, umls: UMLSMapper):
 #     if umls:
@@ -730,7 +738,7 @@ def main():
 
     news_vecs = (Embeddings.load(path="data/60K_news_all.kv"), "News 60K", "word2vec")
     news_vecs_big = (Embeddings.load(path="data/500K_news_all.kv"), "News 500K", "word2vec")
-    news_vecs_big_3M = (Embeddings.load(path="data/3M_news_all.kv"), "News 3M", "word2vec")
+    # news_vecs_big_3M = (Embeddings.load(path="data/3M_news_all.kv"), "News 3M", "word2vec")
     news_vecs_fasttext = (Embeddings.load(path="data/60K_news_all.kv"), "News 60K", "fastText")
     news_vecs_glove = (Embeddings.load(path="data/60K_news_glove_all.kv"), "News 60K", "Glove")
 
@@ -770,7 +778,7 @@ def main():
     # benchmark = CategoryBenchmark(ggponc_vecs, umls_mapper, evaluator)
     # benchmark.evaluate()
 
-    evaluation = Evaluation([news_vecs, news_vecs_big, news_vecs_big_3M, news_vecs_fasttext, news_vecs_glove,
+    evaluation = Evaluation([news_vecs, news_vecs_big, news_vecs_fasttext, news_vecs_glove,
                              ggponc_vecs, ggponc_vecs_fasttext, ggponc_vecs_glove,
                              jsyncc_vecs, pubmed_vecs],
                             umls_mapper, umls_evaluator, ndf_evaluator, srs_evaluator)

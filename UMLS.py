@@ -144,7 +144,7 @@ class UMLSMapper:
     def replace_with_umls(self, tokens: List[str], delete_non_umls=False) -> List[str]:
         return [self.umls_code(token, delete_non_umls) for token in tokens if self.umls_code(token, delete_non_umls)]
 
-    def replace_documents_with_umls(self, documents: List[str], delete_non_umls=False) -> List[List[str]]:
+    def replace_documents_token_based(self, documents: List[str], delete_non_umls=False) -> List[List[str]]:
         tokenized_documents = [sentence.split() for sentence in documents]
         return [[self.umls_code(token, delete_non_umls) for token in tokens if self.umls_code(token, delete_non_umls)]
                 for tokens in tokenized_documents]
@@ -156,7 +156,7 @@ class UMLSMapper:
         tokenized_docs = [[token.text for token in doc] for doc in tqdm(doc_pipe, desc="Tokenize", total=len(documents))]
         return tokenized_docs
 
-    def replace_documents_with_spacy(self, documents: List[str]) -> List[List[str]]:
+    def replace_documents_with_spacy_multiterm(self, documents: List[str]) -> List[List[str]]:
         nlp = spacy.load('de_core_news_sm')
         matcher = PhraseMatcher(nlp.vocab)
         terms = self.umls_dict.keys()

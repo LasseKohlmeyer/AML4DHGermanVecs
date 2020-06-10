@@ -651,7 +651,7 @@ class Evaluation:
 
         self.benchmarks = []
         for embedding in embeddings:
-            self.benchmarks.append(CategoryBenchmark(embedding, umls_mapper, umls_evaluator))
+            # self.benchmarks.append(CategoryBenchmark(embedding, umls_mapper, umls_evaluator))
             # self.benchmarks.append(SemanticTypeBeam(embedding, umls_mapper, umls_evaluator))
             # self.benchmarks.append(SilhouetteCoefficient(embedding, umls_mapper, umls_evaluator))
             # self.benchmarks.append(ChoiBenchmark(embedding, umls_mapper, umls_evaluator, ndf_evaluator))
@@ -729,6 +729,9 @@ def main():
     ggponc_vecs = (Embeddings.load(path="data/no_prep_vecs_test_all.kv"), "GGPONC", "word2vec")
     ggponc_vecs_fasttext = (Embeddings.load(path="data/GGPONC_fastText_all.kv"), "GGPONC", "fastText")
     ggponc_vecs_glove = (Embeddings.load(path="data/GGPONC_glove_all.kv"), "GGPONC", "Glove")
+    ggponc_vecs_julie = (Embeddings.load(path="data/GGPONC_JULIE_all.kv"), "GGPONC JULIE", "word2vec")
+    ggponc_vecs_no_cui = (assign_concepts_to_vecs(Embeddings.load(path="data/GGPONC_no_cui_all.kv"), umls_mapper),
+                          "GGPONC NO CUI", "word2vec")
     # https://devmount.github.io/GermanWordEmbeddings/
     # pretrained_wiki_news_vecs = (word2vec.KeyedVectors.load_word2vec_format('E:/german.model', binary=True),
     #                              "Wikipedia + News 2015", "word2vec")
@@ -741,6 +744,9 @@ def main():
     # news_vecs_big_3M = (Embeddings.load(path="data/3M_news_all.kv"), "News 3M", "word2vec")
     news_vecs_fasttext = (Embeddings.load(path="data/60K_news_all.kv"), "News 60K", "fastText")
     news_vecs_glove = (Embeddings.load(path="data/60K_news_glove_all.kv"), "News 60K", "Glove")
+    news_vecs_julie = (Embeddings.load(path="data/60K_news_JULIE_all.kv"), "News 60K JULIE", "word2vec")
+    news_vecs_no_cui = (assign_concepts_to_vecs(Embeddings.load(path="data/60K_news_no_cui_all.kv"), umls_mapper),
+                        "News 60K NO CUI", "word2vec")
 
     jsyncc_vecs= (Embeddings.load(path="data/JSynCC_all.kv"), "JSynCC", "word2vec")
     pubmed_vecs = (Embeddings.load(path="data/PubMed_all.kv"), "PubMed", "word2vec")
@@ -779,7 +785,9 @@ def main():
     # benchmark.evaluate()
 
     evaluation = Evaluation([news_vecs, news_vecs_big, news_vecs_fasttext, news_vecs_glove,
+                             news_vecs_julie, news_vecs_no_cui,
                              ggponc_vecs, ggponc_vecs_fasttext, ggponc_vecs_glove,
+                             ggponc_vecs_julie, ggponc_vecs_no_cui,
                              jsyncc_vecs, pubmed_vecs],
                             umls_mapper, umls_evaluator, ndf_evaluator, srs_evaluator)
     evaluation.evaluate()

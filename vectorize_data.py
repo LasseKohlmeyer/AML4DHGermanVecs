@@ -71,7 +71,8 @@ def sentence_data2vec(path: str, embedding_name: str,
                       embeddings_algorithm: Union[str, gensim.models.Word2Vec, gensim.models.FastText] = "word2vec",
                       number_sentences: int = None,
                       use_phrases: bool = False,
-                      restrict_vectors: bool = False):
+                      restrict_vectors: bool = False,
+                      umls_replacement: bool = True):
     if isinstance(embeddings_algorithm, str) and embeddings_algorithm.lower() == "word2vec":
         embeddings_algorithm = gensim.models.Word2Vec
     if isinstance(embeddings_algorithm, str) and embeddings_algorithm.lower() == "fasttext":
@@ -96,8 +97,12 @@ def sentence_data2vec(path: str, embedding_name: str,
     # data_sentences = umls_mapper.standardize_documents(data_sentences)
     # data_sentences = umls_mapper.replace_documents_with_umls(data_sentences)
     # sents = [data_sentences[20124], data_sentences[20139]]
-    data_sentences = umls_mapper.replace_documents_with_spacy(data_sentences)
-    print(data_sentences[:10])
+    if umls_replacement:
+        data_sentences = umls_mapper.replace_documents_with_spacy(data_sentences)
+        print(data_sentences[:10])
+    else:
+        data_sentences = umls_mapper.spacy_tokenize(data_sentences)
+        print(data_sentences[:10])
     # for s in data_sentences:
     #     print(s)
     # data_sentences = umls_mapper.replace_documents_with_umls_smart(data_sentences)
@@ -127,6 +132,16 @@ def main():
     #                   embedding_name="60K_news_Glove",
     #                   embeddings_algorithm="Glove",
     #                   number_sentences=60000)
+    # sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences_JULIE.txt",
+    #                   embedding_name="60K_news_JULIE",
+    #                   embeddings_algorithm="word2vec",
+    #                   number_sentences=60000,
+    #                   umls_replacement=False)
+    sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences.txt",
+                      embedding_name="60K_news_no_cui",
+                      embeddings_algorithm="word2vec",
+                      number_sentences=60000,
+                      umls_replacement=False)
 
     # GGPONC
     # sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
@@ -140,6 +155,16 @@ def main():
     # sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
     #                   embedding_name="GGPONC_glove",
     #                   embeddings_algorithm="Glove")
+    # sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences_JULIE.txt",
+    #                   embedding_name="GGPONC_JULIE",
+    #                   embeddings_algorithm="word2vec",
+    #                   umls_replacement=False
+    #                   )
+    sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
+                      embedding_name="GGPONC_no_cui",
+                      embeddings_algorithm="word2vec",
+                      umls_replacement=False
+                      )
 
     # JSYNC
     # sentence_data2vec(path="E:/AML4DH-DATA/JSynCC/jsynncc-sentences.txt",
@@ -147,13 +172,13 @@ def main():
     #                   embeddings_algorithm="word2vec")
 
     # German PubMed
-    path = "E:/AML4DH-DATA/german_pubmed/all_sentences.txt"
-    if not DataHandler.path_exists(path):
-        DataHandler.read_files_and_save_sentences_to_dir("E:\AML4DH-DATA\german_pubmed")
-
-    sentence_data2vec(path=path,
-                      embedding_name="PubMed",
-                      embeddings_algorithm="word2vec")
+    # path = "E:/AML4DH-DATA/german_pubmed/all_sentences.txt"
+    # if not DataHandler.path_exists(path):
+    #     DataHandler.read_files_and_save_sentences_to_dir("E:\AML4DH-DATA\german_pubmed")
+    #
+    # sentence_data2vec(path=path,
+    #                   embedding_name="PubMed",
+    #                   embeddings_algorithm="word2vec")
 
 
     # # load sentences

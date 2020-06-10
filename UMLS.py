@@ -149,6 +149,13 @@ class UMLSMapper:
         return [[self.umls_code(token, delete_non_umls) for token in tokens if self.umls_code(token, delete_non_umls)]
                 for tokens in tokenized_documents]
 
+    def spacy_tokenize(self, documents: List["str"], nlp=None) -> List[List[str]]:
+        if nlp is None:
+            nlp = spacy.load('de_core_news_sm')
+        doc_pipe = list(nlp.pipe(documents, disable=["tagger", "parser", "ner"]))
+        tokenized_docs = [[token.text for token in doc] for doc in tqdm(doc_pipe, desc="Tokenize", total=len(documents))]
+        return tokenized_docs
+
     def replace_documents_with_spacy(self, documents: List[str]) -> List[List[str]]:
         nlp = spacy.load('de_core_news_sm')
         matcher = PhraseMatcher(nlp.vocab)
@@ -171,14 +178,13 @@ class UMLSMapper:
             for concept in concepts:
                 text_doc = text_doc.replace(concept, self.umls_dict[concept])
 
-
             replaced_docs.append(text_doc)
 
             # tokens = [token for token in text_doc.split()]
             # replaced_docs.append(tokens)
-
-        doc_pipe = list(nlp.pipe(replaced_docs, disable=["tagger", "parser", "ner"]))
-        replaced_docs = [[token.text for token in doc] for doc in tqdm(doc_pipe, desc="Tokenize", total=len(documents)) ]
+        replaced_docs = self.spacy_tokenize(replaced_docs, nlp)
+        # doc_pipe = list(nlp.pipe(replaced_docs, disable=["tagger", "parser", "ner"]))
+        # replaced_docs = [[token.text for token in doc] for doc in tqdm(doc_pipe, desc="Tokenize", total=len(documents))]
 
         return replaced_docs
 

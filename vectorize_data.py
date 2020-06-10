@@ -72,7 +72,8 @@ def sentence_data2vec(path: str, embedding_name: str,
                       number_sentences: int = None,
                       use_phrases: bool = False,
                       restrict_vectors: bool = False,
-                      umls_replacement: bool = True):
+                      umls_replacement: bool = True,
+                      use_multiterm_replacement: bool = True):
     if isinstance(embeddings_algorithm, str) and embeddings_algorithm.lower() == "word2vec":
         embeddings_algorithm = gensim.models.Word2Vec
     if isinstance(embeddings_algorithm, str) and embeddings_algorithm.lower() == "fasttext":
@@ -98,7 +99,10 @@ def sentence_data2vec(path: str, embedding_name: str,
     # data_sentences = umls_mapper.replace_documents_with_umls(data_sentences)
     # sents = [data_sentences[20124], data_sentences[20139]]
     if umls_replacement:
-        data_sentences = umls_mapper.replace_documents_with_spacy(data_sentences)
+        if use_multiterm_replacement:
+            data_sentences = umls_mapper.replace_documents_with_spacy_multiterm(data_sentences)
+        else:
+            data_sentences = umls_mapper.replace_documents_token_based(data_sentences)
         print(data_sentences[:10])
     else:
         data_sentences = umls_mapper.spacy_tokenize(data_sentences)
@@ -107,7 +111,6 @@ def sentence_data2vec(path: str, embedding_name: str,
     #     print(s)
     # data_sentences = umls_mapper.replace_documents_with_umls_smart(data_sentences)
     # data_sentences = preprocess(documents=data_sentences, lemmatize=True, remove_stopwords=True)
-
 
     # vecs = Embeddings.calculate_vectors([cpg_words], use_phrases=False)
     vecs = Embeddings.calculate_vectors(data_sentences, use_phrases=use_phrases, embedding_algorithm=embeddings_algorithm)
@@ -118,30 +121,36 @@ def sentence_data2vec(path: str, embedding_name: str,
 def main():
 
     # News
-    # sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/deu_news_2015_3M-sentences.txt",
+    # todo: recalc
+    # sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences.txt",
     #                   embedding_name="3M_news",
     #                   embeddings_algorithm="word2vec",
     #                   number_sentences=None)
 
-    # sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/deu_news_2015_3M-sentences.txt",
-    #                   embedding_name="60K_news_fastText",
-    #                   embeddings_algorithm="fastText",
-    #                   number_sentences=60000)
+    sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences.txt",
+                      embedding_name="60K_news_fastText",
+                      embeddings_algorithm="fastText",
+                      number_sentences=60000)
 
-    # sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/deu_news_2015_3M-sentences.txt",
-    #                   embedding_name="60K_news_Glove",
-    #                   embeddings_algorithm="Glove",
-    #                   number_sentences=60000)
+    sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences.txt",
+                      embedding_name="60K_news_Glove",
+                      embeddings_algorithm="Glove",
+                      number_sentences=60000)
     # sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences_JULIE.txt",
     #                   embedding_name="60K_news_JULIE",
     #                   embeddings_algorithm="word2vec",
     #                   number_sentences=60000,
     #                   umls_replacement=False)
+    # sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences.txt",
+    #                   embedding_name="60K_news_no_cui",
+    #                   embeddings_algorithm="word2vec",
+    #                   number_sentences=60000,
+    #                   umls_replacement=False)
     sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences.txt",
-                      embedding_name="60K_news_no_cui",
+                      embedding_name="60K_news_plain",
                       embeddings_algorithm="word2vec",
                       number_sentences=60000,
-                      umls_replacement=False)
+                      use_multiterm_replacement=False)
 
     # GGPONC
     # sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
@@ -160,10 +169,15 @@ def main():
     #                   embeddings_algorithm="word2vec",
     #                   umls_replacement=False
     #                   )
+    # sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
+    #                   embedding_name="GGPONC_no_cui",
+    #                   embeddings_algorithm="word2vec",
+    #                   umls_replacement=False
+    #                   )
     sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
-                      embedding_name="GGPONC_no_cui",
+                      embedding_name="GGPONC_plain",
                       embeddings_algorithm="word2vec",
-                      umls_replacement=False
+                      use_multiterm_replacement=False
                       )
 
     # JSYNC

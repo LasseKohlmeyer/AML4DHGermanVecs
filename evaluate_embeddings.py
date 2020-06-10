@@ -31,8 +31,6 @@ def revert_list_dict(dictionary: Dict[str, Set[str]], filter_collection: Iterabl
     return reverted_dictionary
 
 
-
-
 class AbstractBenchmark(ABC):
     def __init__(self, embeddings: Tuple[Union[gensim.models.KeyedVectors], str, str],
                  umls_mapper: UMLSMapper,
@@ -45,6 +43,8 @@ class AbstractBenchmark(ABC):
         self.umls_mapper = umls_mapper
         if umls_evaluator:
             self.umls_evaluator = umls_evaluator
+
+        self.oov_embedding = None
 
     @abstractmethod
     def evaluate(self) -> float:
@@ -84,11 +84,17 @@ class AbstractBenchmark(ABC):
             matrix.append(np.array(row))
         return np.array(matrix)
 
-
     def n_similarity(self, v1: List[np.ndarray], v2: List[np.ndarray]) -> np.ndarray:
         if not(len(v1) and len(v2)):
             raise ZeroDivisionError('At least one of the passed list is empty.')
         return np.dot(matutils.unitvec(np.array(v1).mean(axis=0)), matutils.unitvec(np.array(v2).mean(axis=0)))
+
+    def avg_embedding(self) -> np.ndarray:
+        if self.oov_embedding is None:
+            vecs = [self.vectors.get_vector(word) for word in self.vocab]
+            # fixme invalid value?
+            self.oov_embedding = sum(vecs) / len(vecs)
+        return self.oov_embedding
 
     def get_concept_vector(self, concept) -> Union[np.ndarray, None]:
         if concept in self.vocab:
@@ -113,6 +119,30 @@ class AbstractBenchmark(ABC):
                     # print("not in", concept, self.umls_mapper.umls_reverse_dict[concept])
                     return concept_vector
             return None
+
+    def get_concept_vector_oov_sensitive(self, concept) -> Union[np.ndarray, None]:
+        try:
+            return self.vectors.get_vector(concept)
+        except KeyError:
+            # if concept in self.umls_mapper.umls_reverse_dict:
+            #     concept_vectors = []
+            #     for candidate in self.umls_mapper.umls_reverse_dict[concept]:
+            #         candidate_tokens = candidate.split()
+            #         candidate_vectors = []
+            #         for token in candidate_tokens:
+            #             if token in self.vocab:
+            #                 candidate_vectors.append(self.vectors.get_vector(token))
+            #
+            #         if len(candidate_vectors) == len(candidate_tokens):
+            #             candidate_vector = sum(candidate_vectors)
+            #             concept_vectors.append(candidate_vector)
+            #
+            #     if len(concept_vectors) > 0:
+            #         concept_vector = sum(concept_vectors) / len(concept_vectors)
+            #         # print("not in", concept, self.umls_mapper.umls_reverse_dict[concept])
+            #         return concept_vector
+            return self.avg_embedding()
+
 
 
 class CategoryBenchmark(AbstractBenchmark):
@@ -476,11 +506,10 @@ class HumanAssessment(AbstractBenchmark):
         sigma = []
 
         for concept, other_concepts in human_assessment_dict.items():
-            concept_vec = self.get_concept_vector(concept)
+            concept_vec = self.get_concept_vector_oov_sensitive(concept)
             if concept_vec is not None:
                 for other_concept in other_concepts:
-                    other_concept_vec = self.get_concept_vector(other_concept)
-
+                    other_concept_vec = self.get_concept_vector_oov_sensitive(other_concept)
                     if other_concept_vec is not None:
                         distance = abs(human_assessment_dict[concept][other_concept]
                                        - self.cosine(vector1=concept_vec, vector2=other_concept_vec))
@@ -663,9 +692,12 @@ class Evaluation:
             print(benchmark.__class__.__name__, benchmark.dataset, benchmark.algorithm)
             score = benchmark.evaluate()
             number_concepts = len(set(benchmark.umls_mapper.umls_reverse_dict.keys()).intersection(set(benchmark.vocab)))
-            tuples.append((benchmark.dataset, benchmark.algorithm, benchmark.__class__.__name__, score, number_concepts))
+            number_vectors = len(benchmark.vocab)
+            tuples.append((benchmark.dataset, benchmark.algorithm, benchmark.__class__.__name__, score,
+                           number_concepts, number_vectors))
 
-        df = pd.DataFrame(tuples, columns=['Data set', 'Algorithm', 'Benchmark', 'Score', '# Concepts'])
+        df = pd.DataFrame(tuples, columns=['Data set', 'Algorithm', 'Benchmark', 'Score', '# Concepts', '# Words'])
+        df["CUI Coverage"] = (df["# Concepts"] / df["# Words"])
         print(df)
         df.to_csv('data/benchmark_results1.csv', index=False, encoding="utf-8")
         used_benchmarks_dict = defaultdict(list)
@@ -673,16 +705,18 @@ class Evaluation:
             used_benchmarks_dict["Data set"].append(row["Data set"])
             used_benchmarks_dict["Algorithm"].append(row["Algorithm"])
             used_benchmarks_dict["# Concepts"].append(row["# Concepts"])
+            used_benchmarks_dict["# Words"].append(row["# Words"])
             used_benchmarks_dict[row["Benchmark"]].append(row["Score"])
-
+            used_benchmarks_dict["CUI Coverage"].append(row["CUI Coverage"])
 
         number_benchmarks = len(set(df["Benchmark"]))
-        reformat = ["Data set", "Algorithm", "# Concepts"]
+        reformat = ["Data set", "Algorithm", "# Concepts", "# Words", "CUI Coverage"]
         for column in reformat:
             used_benchmarks_dict[column] = [entry for i, entry in enumerate(used_benchmarks_dict[column])
                                             if i % number_benchmarks == 0]
 
         df_table = pd.DataFrame.from_dict(used_benchmarks_dict)
+
         print(df_table)
         df_table.to_csv('data/benchmark_results2.csv', index=False, encoding="utf-8")
 
@@ -725,13 +759,15 @@ def assign_concepts_to_vecs(vectors: gensim.models.KeyedVectors, umls_mapper: UM
 
 def main():
     umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
-
-    ggponc_vecs = (Embeddings.load(path="data/no_prep_vecs_test_all.kv"), "GGPONC", "word2vec")
-    ggponc_vecs_fasttext = (Embeddings.load(path="data/GGPONC_fastText_all.kv"), "GGPONC", "fastText")
+    # ggponc_vecs_fasttext = (Embeddings.load(path="data/GGPONC_fastText_all.kv"), "GGPONC", "fastText")
+    # print("Literamatik" in ggponc_vecs_fasttext[0].vocab, ggponc_vecs_fasttext[0].get_vector("Literamatik"))
     ggponc_vecs_glove = (Embeddings.load(path="data/GGPONC_glove_all.kv"), "GGPONC", "Glove")
-    ggponc_vecs_julie = (Embeddings.load(path="data/GGPONC_JULIE_all.kv"), "GGPONC JULIE", "word2vec")
-    ggponc_vecs_no_cui = (assign_concepts_to_vecs(Embeddings.load(path="data/GGPONC_no_cui_all.kv"), umls_mapper),
-                          "GGPONC NO CUI", "word2vec")
+    ggponc_vecs = (Embeddings.load(path="data/no_prep_vecs_test_all.kv"), "GGPONC", "word2vec")
+    # ggponc_vecs_julie = (Embeddings.load(path="data/GGPONC_JULIE_all.kv"), "GGPONC JULIE", "word2vec")
+    # ggponc_vecs_no_cui = (assign_concepts_to_vecs(Embeddings.load(path="data/GGPONC_no_cui_all.kv"), umls_mapper),
+    #                       "GGPONC NO CUI", "word2vec")
+    # ggponc_vecs_plain = (Embeddings.load(path="data/GGPONC_plain_all.kv"), "GGPONC plain", "word2vec")
+
     # https://devmount.github.io/GermanWordEmbeddings/
     # pretrained_wiki_news_vecs = (word2vec.KeyedVectors.load_word2vec_format('E:/german.model', binary=True),
     #                              "Wikipedia + News 2015", "word2vec")
@@ -739,14 +775,15 @@ def main():
     # pretrained_wiki_news_vecs = (assign_concepts_to_vecs(pretrained_wiki_news_vecs[0], umls_mapper),
     #                              "Wikipedia + News 2015", "word2vec")
 
-    news_vecs = (Embeddings.load(path="data/60K_news_all.kv"), "News 60K", "word2vec")
-    news_vecs_big = (Embeddings.load(path="data/500K_news_all.kv"), "News 500K", "word2vec")
-    # news_vecs_big_3M = (Embeddings.load(path="data/3M_news_all.kv"), "News 3M", "word2vec")
-    news_vecs_fasttext = (Embeddings.load(path="data/60K_news_all.kv"), "News 60K", "fastText")
-    news_vecs_glove = (Embeddings.load(path="data/60K_news_glove_all.kv"), "News 60K", "Glove")
-    news_vecs_julie = (Embeddings.load(path="data/60K_news_JULIE_all.kv"), "News 60K JULIE", "word2vec")
-    news_vecs_no_cui = (assign_concepts_to_vecs(Embeddings.load(path="data/60K_news_no_cui_all.kv"), umls_mapper),
-                        "News 60K NO CUI", "word2vec")
+    # news_vecs = (Embeddings.load(path="data/60K_news_all.kv"), "News 60K", "word2vec")
+    # news_vecs_big = (Embeddings.load(path="data/500K_news_all.kv"), "News 500K", "word2vec")
+    # # news_vecs_big_3M = (Embeddings.load(path="data/3M_news_all.kv"), "News 3M", "word2vec")
+    # news_vecs_fasttext = (Embeddings.load(path="data/60K_news_all.kv"), "News 60K", "fastText")
+    # news_vecs_glove = (Embeddings.load(path="data/60K_news_glove_all.kv"), "News 60K", "Glove")
+    # news_vecs_julie = (Embeddings.load(path="data/60K_news_JULIE_all.kv"), "News 60K JULIE", "word2vec")
+    # news_vecs_no_cui = (assign_concepts_to_vecs(Embeddings.load(path="data/60K_news_no_cui_all.kv"), umls_mapper),
+    #                     "News 60K NO CUI", "word2vec")
+    # news_vecs_plain = (Embeddings.load(path="data/60K_news_plain_all.kv"), "News 60K plain", "word2vec")
 
     jsyncc_vecs= (Embeddings.load(path="data/JSynCC_all.kv"), "JSynCC", "word2vec")
     pubmed_vecs = (Embeddings.load(path="data/PubMed_all.kv"), "PubMed", "word2vec")
@@ -784,11 +821,14 @@ def main():
     # benchmark = CategoryBenchmark(ggponc_vecs, umls_mapper, evaluator)
     # benchmark.evaluate()
 
-    evaluation = Evaluation([news_vecs, news_vecs_big, news_vecs_fasttext, news_vecs_glove,
-                             news_vecs_julie, news_vecs_no_cui,
-                             ggponc_vecs, ggponc_vecs_fasttext, ggponc_vecs_glove,
-                             ggponc_vecs_julie, ggponc_vecs_no_cui,
-                             jsyncc_vecs, pubmed_vecs],
+    evaluation = Evaluation([
+                             # news_vecs, news_vecs_big, news_vecs_fasttext, news_vecs_glove,
+                             # news_vecs_julie, news_vecs_no_cui, news_vecs_plain,
+                             # ggponc_vecs, ggponc_vecs_fasttext,
+                             ggponc_vecs_glove,
+                             # ggponc_vecs_julie, ggponc_vecs_no_cui, ggponc_vecs_plain,
+                             jsyncc_vecs, pubmed_vecs
+                            ],
                             umls_mapper, umls_evaluator, ndf_evaluator, srs_evaluator)
     evaluation.evaluate()
 
@@ -799,8 +839,6 @@ def main():
     # ggponc_vecs.vocab})
     #
     # emb.plot_interactive("Fibroblasten", "Fremdkörper")
-
-    # replace multi words
 
 
 if __name__ == "__main__":

@@ -63,9 +63,9 @@ class Embeddings:
         # print(m.vocab)
         my_save_word2vec_format(binary=True, fname=file_name, total_vec=len(dict_vecs), vocab=m.vocab,
                                 vectors=m.vectors)
-        reloaded_vecs = gensim.models.keyedvectors.Word2VecKeyedVectors.load_word2vec_format(file_name, binary=True, unicode_errors="replace")
+        reloaded_vecs = gensim.models.keyedvectors.Word2VecKeyedVectors.load_word2vec_format(file_name, binary=True,
+                                                                                             unicode_errors="replace")
         return reloaded_vecs
-
 
     @staticmethod
     def glove_vectors(sentences: List[List[str]],
@@ -78,6 +78,12 @@ class Embeddings:
                       seed: int = 42,
                       alpha: float = 0.025,
                       x_max: int = 100) -> gensim.models.KeyedVectors:
+
+        def nan_checker(inp):
+            if np.isnan(inp) or inp == np.nan:
+                return 0.00000001
+            else:
+                return inp
 
         def build_co_occurrence_dict():
             d = defaultdict(lambda: defaultdict(int))
@@ -105,9 +111,8 @@ class Embeddings:
 
             # print('>', vocab)
             # print('>>', reverse_vocab)
-
-
             # print(tokenized_sentences)
+
             for text_tokens in tokenized_sentences:
                 for i in range(len(text_tokens)):
                     token = text_tokens[i]
@@ -125,7 +130,8 @@ class Embeddings:
                     d[key][key] = 1
 
             cooccur = {k: {k_i: v_i for k_i, v_i in v.items()} for k, v in d.items()}
-            # cooccur = {k: {k_i: v_i for k_i, v_i in OrderedDict(sorted(v.items())).items()} for k, v in OrderedDict(sorted(d.items())).items()}
+            # cooccur = {k: {k_i: v_i for k_i, v_i in OrderedDict(sorted(v.items())).items()}
+            #            for k, v in OrderedDict(sorted(d.items())).items()}
             # print(cooccur)
             return cooccur, vocab, reverse_vocab
 
@@ -141,13 +147,15 @@ class Embeddings:
             epoch_bar.set_description("Glove epoch %d, error %.10f" % (epoch+1, err))
             epoch_bar.update()
 
+        vecs = [np.array([nan_checker(ele) for ele in vec]) for vec in model.W]
+
         # print(len(model.W[0]))
         # print(len(vocabulary), len(reverse_vocabulary))
 
         # for key in (set(vocabulary.keys()).difference(set(reverse_vocabulary.values()))):
         #     print(key, vocabulary[key])
 
-        return Embeddings.to_gensim_binary({word: vector for word, vector in zip(vocabulary.keys(), model.W)})
+        return Embeddings.to_gensim_binary({word: vector for word, vector in zip(vocabulary.keys(), vecs)})
 
     @staticmethod
     def calculate_vectors(sentences=List[str],
@@ -180,8 +188,8 @@ class Embeddings:
             model = embedding_algorithm(bigram_transformer[sentences], size=dim, window=window, min_count=min_count,
                                         workers=workers, seed=seed, iter=epochs, alpha=alpha)
         else:
-            model = embedding_algorithm(sentences, size=dim, window=window, min_count=min_count, workers=workers, iter=epochs,
-                                        seed=seed, alpha=alpha)
+            model = embedding_algorithm(sentences, size=dim, window=window, min_count=min_count, workers=workers,
+                                        iter=epochs, seed=seed, alpha=alpha)
         return model.wv
 
     @staticmethod
@@ -239,7 +247,8 @@ class Embeddings:
 # # print()
 # # print(sents)
 # # sents = ["ente futter gans bier", "ente gans another esel der"]
-# sents = [['Bei', '', 'Malignompatienten', 'einem', 'mehreren', 'dieser', 'C0035648', 'in', 'der', 'Regel', 'die', 'prophylaktische', 'Gabe'], ['Die', 'C0086818', 'wird', 'bei', 'hämatologisch-onkologischen', 'onkologischen', 'C0030705', 'mit', 'akuter', 'Thrombozytenbildungsstörung', 'und', 'zusätzlichen', 'Blutungsrisiken', 'empfohlen', 'bei', ':'], ['Thrombozytenkonzentrate', '(', 'TK', ')', 'werden', 'entweder', 'aus', 'Vollblutspenden', 'oder', 'durch', 'C0032202', 'von', 'gesunden', 'Blutspendern', 'gewonnen', '.'], ['Falls', 'nicht', 'verfügbar', ',', 'sollte', 'eine', 'entsprechende', 'C0010210', 'stattfinden', 'oder', 'Kontaktadressen', 'vermittelt', 'werden', '.'], ['M.', 'Meissner', ',', 'W.', 'Nehls', ',', 'J.', 'Gärtner', ',', 'U.', 'Kleeberg', ',', 'R.', 'Voltz'], [' '], ['C3816218', 'ist', 'definiert', 'als', 'ein', 'Ansatz', 'zur', 'Verbesserung', 'der', 'C0034380', 'von', 'C0030705', 'und', 'ihren', 'Familien', ',', 'die', 'mit', 'Problemen', 'konfrontiert', 'sind', ',', 'welche', 'mit', 'einer', 'lebensbedrohlichen', 'Erkrankung', 'einhergehen', '.']]
+# sents = [['Bei', '', 'Malignompatienten', 'einem', 'mehreren', 'dieser', 'C0035648', 'in', 'der', 'Regel', 'die', 'prophylaktische', 'Gabe'],
+# ['Die', 'C0086818', 'wird', 'bei', 'hämatologisch-onkologischen', 'onkologischen', 'C0030705', 'mit', 'akuter', 'Thrombozytenbildungsstörung', 'und', 'zusätzlichen', 'Blutungsrisiken', 'empfohlen', 'bei', ':'], ['Thrombozytenkonzentrate', '(', 'TK', ')', 'werden', 'entweder', 'aus', 'Vollblutspenden', 'oder', 'durch', 'C0032202', 'von', 'gesunden', 'Blutspendern', 'gewonnen', '.'], ['Falls', 'nicht', 'verfügbar', ',', 'sollte', 'eine', 'entsprechende', 'C0010210', 'stattfinden', 'oder', 'Kontaktadressen', 'vermittelt', 'werden', '.'], ['M.', 'Meissner', ',', 'W.', 'Nehls', ',', 'J.', 'Gärtner', ',', 'U.', 'Kleeberg', ',', 'R.', 'Voltz'], [' '], ['C3816218', 'ist', 'definiert', 'als', 'ein', 'Ansatz', 'zur', 'Verbesserung', 'der', 'C0034380', 'von', 'C0030705', 'und', 'ihren', 'Familien', ',', 'die', 'mit', 'Problemen', 'konfrontiert', 'sind', ',', 'welche', 'mit', 'einer', 'lebensbedrohlichen', 'Erkrankung', 'einhergehen', '.']]
 # print(sents)
 # # sents = [" ".join(['C0850666', 'ist', 'der', 'wesentliche', 'Risikofaktor', 'für', 'das', 'C0699791', '.']),
 # #          " ".join(['Die', 'H.', 'pylori-Eradikation', 'mit', 'dem', 'Ziel'])]

@@ -8,11 +8,11 @@ from embeddings import Embeddings
 from transform_data import DataHandler
 
 
-def preprocess(tokens: List[str] = None, documents: List[List[str]] = None, lemmatize: bool = False, lower: bool = False,
-               pos_filter: list = None, remove_stopwords: bool = False,
+def preprocess(tokens: List[str] = None, documents: List[List[str]] = None, lemmatize: bool = False,
+               lower: bool = False, pos_filter: list = None, remove_stopwords: bool = False,
                remove_punctuation: bool = False, lan_model=None) -> List[List[str]]:
-    def token_representation(token):
-        representation = str(token.lemma_) if lemmatize else str(token)
+    def token_representation(tok):
+        representation = str(tok.lemma_) if lemmatize else str(tok)
         if lower:
             representation = representation.lower()
         return representation
@@ -113,29 +113,30 @@ def sentence_data2vec(path: str, embedding_name: str,
     # data_sentences = preprocess(documents=data_sentences, lemmatize=True, remove_stopwords=True)
 
     # vecs = Embeddings.calculate_vectors([cpg_words], use_phrases=False)
-    vecs = Embeddings.calculate_vectors(data_sentences, use_phrases=use_phrases, embedding_algorithm=embeddings_algorithm)
+    vecs = Embeddings.calculate_vectors(data_sentences,
+                                        use_phrases=use_phrases,
+                                        embedding_algorithm=embeddings_algorithm)
     print(f'Got {len(vecs.vocab)} vectors for {len(data_sentences)} sentences')
 
     Embeddings.save_medical(vecs, embedding_name, umls_mapper, restrict=restrict_vectors)
 
-def main():
 
+def main():
     # News
-    # todo: recalc
     # sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences.txt",
     #                   embedding_name="3M_news",
     #                   embeddings_algorithm="word2vec",
     #                   number_sentences=None)
 
-    sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences.txt",
-                      embedding_name="60K_news_fastText",
-                      embeddings_algorithm="fastText",
-                      number_sentences=60000)
+    # sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences.txt",
+    #                   embedding_name="60K_news_fastText",
+    #                   embeddings_algorithm="fastText",
+    #                   number_sentences=60000)
 
-    sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences.txt",
-                      embedding_name="60K_news_Glove",
-                      embeddings_algorithm="Glove",
-                      number_sentences=60000)
+    # sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences.txt",
+    #                   embedding_name="60K_news_Glove",
+    #                   embeddings_algorithm="Glove",
+    #                   number_sentences=60000)
     # sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences_JULIE.txt",
     #                   embedding_name="60K_news_JULIE",
     #                   embeddings_algorithm="word2vec",
@@ -146,11 +147,11 @@ def main():
     #                   embeddings_algorithm="word2vec",
     #                   number_sentences=60000,
     #                   umls_replacement=False)
-    sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences.txt",
-                      embedding_name="60K_news_plain",
-                      embeddings_algorithm="word2vec",
-                      number_sentences=60000,
-                      use_multiterm_replacement=False)
+    # sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences.txt",
+    #                   embedding_name="60K_news_plain",
+    #                   embeddings_algorithm="word2vec",
+    #                   number_sentences=60000,
+    #                   use_multiterm_replacement=False)
 
     # GGPONC
     # sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
@@ -160,10 +161,10 @@ def main():
     # sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
     #                   embedding_name="GGPONC_fastText",
     #                   embeddings_algorithm="fastText")
-
-    # sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
-    #                   embedding_name="GGPONC_glove",
-    #                   embeddings_algorithm="Glove")
+    # check: still nan error?
+    sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
+                      embedding_name="GGPONC_glove",
+                      embeddings_algorithm="Glove")
     # sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences_JULIE.txt",
     #                   embedding_name="GGPONC_JULIE",
     #                   embeddings_algorithm="word2vec",
@@ -174,11 +175,11 @@ def main():
     #                   embeddings_algorithm="word2vec",
     #                   umls_replacement=False
     #                   )
-    sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
-                      embedding_name="GGPONC_plain",
-                      embeddings_algorithm="word2vec",
-                      use_multiterm_replacement=False
-                      )
+    # sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
+    #                   embedding_name="GGPONC_plain",
+    #                   embeddings_algorithm="word2vec",
+    #                   use_multiterm_replacement=False
+    #                   )
 
     # JSYNC
     # sentence_data2vec(path="E:/AML4DH-DATA/JSynCC/jsynncc-sentences.txt",
@@ -194,9 +195,8 @@ def main():
     #                   embedding_name="PubMed",
     #                   embeddings_algorithm="word2vec")
 
-
     # # load sentences
-    # # https: // www.kaggle.com / rtatman / 3 - million - german - sentences / data?select = deu_news_2015_3M - sentences.txt
+    # # https://www.kaggle.com/rtatman/3-million-german-sentences/data?select=deu_news_2015_3M-sentences.txt
     # data_sentences = lines_from_file(path="E:/AML4DH-DATA/2015_3M_sentences/deu_news_2015_3M-sentences.txt")
     # # data_sentences = lines_from_file(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt")
     # print((data_sentences[:10]))

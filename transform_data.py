@@ -138,7 +138,7 @@ class DataHandler:
         # replaced_sentences = [replace(sentence, replacements) for sentence in tqdm(sentences)]
 
         replaced_sentences = DataHandler.replace_documents_with_spacy(sentences, replacements)
-        # DataHandler.save(new_path, "\n".join(replaced_sentences))
+        DataHandler.save(new_path, "\n".join(replaced_sentences))
 
     @staticmethod
     def julielab_replacements_offset_using(file_path, offset_path, new_path):
@@ -170,9 +170,19 @@ class DataHandler:
         DataHandler.save(new_path, "\n".join(replaced_sentences))
 
 
-DataHandler.julielab_replacements(file_path='E:\AML4DH-DATA\CPG-AMIA2020\Plain Text\cpg-sentences.txt',
-                                  offset_path='E:\AML4DH-DATA\offsets\cpg_offsets.tsv',
-                                  new_path='E:\AML4DH-DATA\CPG-AMIA2020\Plain Text\cpg-sentences_JULIE.txt')
+# DataHandler.julielab_replacements(file_path='E:\AML4DH-DATA\CPG-AMIA2020\Plain Text\cpg-sentences.txt',
+#                                   offset_path='E:\AML4DH-DATA\offsets\cpg_offsets.tsv',
+#                                   new_path='E:\AML4DH-DATA\CPG-AMIA2020\Plain Text\cpg-sentences_JULIE.txt')
+
+
+DataHandler.julielab_replacements(file_path='E:/AML4DH-DATA/JSynCC/jsynncc-sentences.txt',
+                                  offset_path='E:/AML4DH-DATA/offsets/jsynncc_offsets.tsv',
+                                  new_path='E:/AML4DH-DATA/JSynCC/jsynncc-sentences_JULIE.txt')
+
+DataHandler.julielab_replacements(file_path='E:/AML4DH-DATA/german_pubmed/all_sentences.txt',
+                                  offset_path='E:/AML4DH-DATA/offsets/pubmed_offsets.tsv',
+                                  new_path='E:/AML4DH-DATA/german_pubmed/all_sentences_JULIE.txt')
+
 
 # DataHandler.julielab_replacements(file_path='E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences.txt',
 #                                   offset_path='E:/AML4DH-DATA/offsets/news_offsets.tsv',

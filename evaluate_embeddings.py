@@ -36,24 +36,29 @@ class Evaluation:
             score = benchmark.evaluate()
             nr_concepts = len(set(benchmark.umls_mapper.umls_reverse_dict.keys()).intersection(set(benchmark.vocab)))
             nr_vectors = len(benchmark.vocab)
-            tuples.append((benchmark.dataset, benchmark.algorithm, benchmark.__class__.__name__, score,
-                           nr_concepts, nr_vectors))
+            actual_umls_terms = set(benchmark.umls_mapper.umls_reverse_dict.keys()).intersection(set(benchmark.vocab.keys()))
+            umls_cov = len(actual_umls_terms) / len(benchmark.umls_mapper.umls_dict.keys())
+            tuples.append((benchmark.dataset, benchmark.algorithm, benchmark.preprocessing,
+                           benchmark.__class__.__name__, score, nr_concepts, nr_vectors, umls_cov))
 
-        df = pd.DataFrame(tuples, columns=['Data set', 'Algorithm', 'Benchmark', 'Score', '# Concepts', '# Words'])
+        df = pd.DataFrame(tuples, columns=['Data set', 'Algorithm', 'Preprocessing', 'Benchmark', 'Score', '# Concepts',
+                                           '# Words', 'UMLS Coverage'])
         df["CUI Coverage"] = (df["# Concepts"] / df["# Words"])
         print(df)
         df.to_csv('data/benchmark_results1.csv', index=False, encoding="utf-8")
         used_benchmarks_dict = defaultdict(list)
         for i, row in df.iterrows():
             used_benchmarks_dict["Data set"].append(row["Data set"])
+            used_benchmarks_dict["Preprocessing"].append(row["Preprocessing"])
             used_benchmarks_dict["Algorithm"].append(row["Algorithm"])
             used_benchmarks_dict["# Concepts"].append(row["# Concepts"])
             used_benchmarks_dict["# Words"].append(row["# Words"])
             used_benchmarks_dict[row["Benchmark"]].append(row["Score"])
             used_benchmarks_dict["CUI Coverage"].append(row["CUI Coverage"])
+            used_benchmarks_dict["UMLS Coverage"].append(row["UMLS Coverage"])
 
         number_benchmarks = len(set(df["Benchmark"]))
-        reformat = ["Data set", "Algorithm", "# Concepts", "# Words", "CUI Coverage"]
+        reformat = ["Data set", "Algorithm", "Preprocessing", "# Concepts", "# Words", "CUI Coverage", "UMLS Coverage"]
         for column in reformat:
             used_benchmarks_dict[column] = [entry for i, entry in enumerate(used_benchmarks_dict[column])
                                             if i % number_benchmarks == 0]
@@ -102,57 +107,64 @@ def assign_concepts_to_vecs(vectors: gensim.models.KeyedVectors, umls_mapper: UM
 
 def main():
     umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
-    Embedding = namedtuple('Embedding', 'vectors dataset algorithm')
+    Embedding = namedtuple('Embedding', 'vectors dataset algorithm preprocessing')
 
+    # multi-term: sensible for multi token concepts
+    # single-term: unsensible for multi token concepts
+    # JULIE: JULIE repelacement of concepts
+    # SE CUI: Subsequenti Estimated CUIs with own method
     embeddings_to_benchmark = [
+        # Related Work
+        Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/claims_cuis_hs_300.txt'), "Claims", "word2vec", "UNK"),
+        Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/DeVine_etal_200.txt'), "DeVine et al", "word2vec", "UNK"),
+        # Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/stanford_cuis_svd_300.txt'), "Stanford", "word2vec", "UNK"),
         # GGPONC
-        Embedding(Embeddings.load(path="data/no_prep_vecs_test_all.kv"), "GGPONC", "word2vec"),
-        Embedding(Embeddings.load(path="data/GGPONC_plain_all.kv"), "GGPONC plain", "word2vec"),
-        Embedding(Embeddings.load(path="data/GGPONC_JULIE_all.kv"), "GGPONC JULIE", "word2vec"),
+        Embedding(Embeddings.load(path="data/no_prep_vecs_test_all.kv"), "GGPONC", "word2vec", "multi-term"),
+        Embedding(Embeddings.load(path="data/GGPONC_plain_all.kv"), "GGPONC", "word2vec", "single-term"),
+        Embedding(Embeddings.load(path="data/GGPONC_JULIE_all.kv"), "GGPONC", "word2vec", "JULIE"),
         Embedding(assign_concepts_to_vecs(Embeddings.load(path="data/GGPONC_no_cui_all.kv"), umls_mapper),
-                  "GGPONC NO CUI", "word2vec"),
-        Embedding(Embeddings.load(path="data/GGPONC_fastText_all.kv"), "GGPONC", "fastText"),
-        Embedding(Embeddings.load(path="data/GGPONC_glove_all.kv"), "GGPONC", "Glove"),
+                  "GGPONC", "word2vec", "SE CUI"),
+        Embedding(Embeddings.load(path="data/GGPONC_fastText_all.kv"), "GGPONC", "fastText", "multi-term"),
+        Embedding(Embeddings.load(path="data/GGPONC_glove_all.kv"), "GGPONC", "Glove", "multi-term"),
         # Pretrained
         # https://devmount.github.io/GermanWordEmbeddings/
-        # Embedding(assign_concepts_to_vecs(word2vec.KeyedVectors.load_word2vec_format('E:/german.model', binary=True),
-        #                                   umls_mapper), "Wikipedia + News 2015", "word2vec")
+        Embedding(assign_concepts_to_vecs(Embeddings.load_w2v_format('E:/german.model', binary=True),
+                                          umls_mapper), "Wikipedia + News 2015", "word2vec", "SE CUI"),
         # News
-        Embedding(Embeddings.load(path="data/60K_news_all.kv"), "News 60K", "word2vec"),
-        Embedding(Embeddings.load(path="data/60K_news_plain_all.kv"), "News 60K plain", "word2vec"),
-        Embedding(Embeddings.load(path="data/60K_news_JULIE_all.kv"), "News 60K JULIE", "word2vec"),
+        Embedding(Embeddings.load(path="data/60K_news_all.kv"), "News 60K", "word2vec", "multi-term"),
+        Embedding(Embeddings.load(path="data/60K_news_plain_all.kv"), "News 60K", "word2vec", "single-term"),
+        Embedding(Embeddings.load(path="data/60K_news_JULIE_all.kv"), "News 60K", "word2vec", "JULIE"),
         Embedding(assign_concepts_to_vecs(Embeddings.load(path="data/60K_news_no_cui_all.kv"), umls_mapper),
-                  "News 60K NO CUI", "word2vec"),
-        Embedding(Embeddings.load(path="data/60K_news_all.kv"), "News 60K", "fastText"),
-        Embedding(Embeddings.load(path="data/60K_news_glove_all.kv"), "News 60K", "Glove"),
-        Embedding(Embeddings.load(path="data/500K_news_all.kv"), "News 500K", "word2vec"),
-        # Embedding(Embeddings.load(path="data/3M_news_all.kv"), "News 3M", "word2vec"),
+                  "News 60K", "word2vec", "SE CUI"),
+        Embedding(Embeddings.load(path="data/60K_news_all.kv"), "News 60K", "fastText", "multi-term"),
+        Embedding(Embeddings.load(path="data/60K_news_glove_all.kv"), "News 60K", "Glove", "multi-term"),
+        Embedding(Embeddings.load(path="data/500K_news_all.kv"), "News 500K", "word2vec", "multi-term"),
+        # Embedding(Embeddings.load(path="data/3M_news_all.kv"), "News 3M", "word2vec", "multi-term"),
         # JSynCC
-        Embedding(Embeddings.load(path="data/JSynCC_all.kv"), "JSynCC", "word2vec"),
+        Embedding(Embeddings.load(path="data/JSynCC_all.kv"), "JSynCC", "word2vec", "multi-term"),
         # PubMed
-        Embedding(Embeddings.load(path="data/PubMed_all.kv"), "PubMed", "word2vec"),
+        Embedding(Embeddings.load(path="data/PubMed_all.kv"), "PubMed", "word2vec", "multi-term"),
         # German Medical Concatenation
-        Embedding(Embeddings.load(path="data/German_Medical_all.kv"), "GerVec", "word2vec"),
-        Embedding(Embeddings.load(path="data/German_Medical_plain_all.kv"), "GerVec plain", "word2vec"),
-        Embedding(Embeddings.load(path="data/German_Medical_JULIE_all.kv"), "GerVec JULIE", "word2vec"),
+        Embedding(Embeddings.load(path="data/German_Medical_all.kv"), "GerVec", "word2vec", "multi-term"),
+        Embedding(Embeddings.load(path="data/German_Medical_plain_all.kv"), "GerVec", "word2vec", "single-term"),
+        Embedding(Embeddings.load(path="data/German_Medical_JULIE_all.kv"), "GerVec", "word2vec", "JULIE"),
         Embedding(assign_concepts_to_vecs(Embeddings.load(path="data/German_Medical_no_cui_all.kv"), umls_mapper),
-                  "GerVec NO CUI", "word2vec"),
-        Embedding(Embeddings.load(path="data/German_Medical_fastText_all.kv"), "GerVec", "fastText"),
-        Embedding(Embeddings.load(path="data/German_Medical_fastText_plain_all.kv"), "GerVec plain",
-                  "fastText"),
-        Embedding(Embeddings.load(path="data/German_Medical_fastText_JULIE_all.kv"), "GerVec JULIE",
-                  "fastText"),
+                  "GerVec", "word2vec", "SE CUI"),
+        Embedding(Embeddings.load(path="data/German_Medical_fastText_all.kv"), "GerVec", "fastText", "multi-term"),
+        Embedding(Embeddings.load(path="data/German_Medical_fastText_plain_all.kv"), "GerVec",
+                  "fastText", "single-term"),
+        Embedding(Embeddings.load(path="data/German_Medical_fastText_JULIE_all.kv"), "GerVec",
+                  "fastText", "JULIE"),
         Embedding(assign_concepts_to_vecs(Embeddings.load(path="data/German_Medical_fastText_no_cui_all.kv"),
-                                          umls_mapper), "GerVec NO CUI", "fastText"),
-        Embedding(Embeddings.load(path="data/German_Medical_all.kv"), "GerVec", "Glove"),
-        Embedding(Embeddings.load(path="data/German_Medical_Glove_plain_all.kv"), "GerVec plain",
-                  "Glove"),
-        Embedding(Embeddings.load(path="data/German_Medical_Glove_JULIE_all.kv"), "GerVec JULIE",
-                  "Glove"),
+                                          umls_mapper), "GerVec", "fastText", "SE CUI"),
+        Embedding(Embeddings.load(path="data/German_Medical_all.kv"), "GerVec", "Glove", "multi-term"),
+        Embedding(Embeddings.load(path="data/German_Medical_Glove_plain_all.kv"), "GerVec",
+                  "Glove", "single-term"),
+        Embedding(Embeddings.load(path="data/German_Medical_Glove_JULIE_all.kv"), "GerVec",
+                  "Glove", "JULIE"),
         Embedding(assign_concepts_to_vecs(Embeddings.load(path="data/German_Medical_Glove_no_cui_all.kv"), umls_mapper),
-                  "GerVec NO CUI", "Glove")
+                  "GerVec", "Glove", "SE CUI")
     ]
-
 
     # fasttext_model = load_fasttext_model('E://cc.de.300.bin')
     # fasttext_vecs = (load_facebook_model('E:/cc.de.300.bin'), "common crawl", "fastText")

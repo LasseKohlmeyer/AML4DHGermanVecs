@@ -10,6 +10,7 @@ from gensim import matutils
 # from gensim.models.wrappers import FastText
 from gensim.models.fasttext import load_facebook_model
 from scipy.stats import mannwhitneyu
+from scipy.stats.mstats import spearmanr
 from tqdm import tqdm
 
 import constant
@@ -27,10 +28,10 @@ def revert_list_dict(dictionary: Dict[str, Set[str]], filter_collection: Iterabl
 
 
 class Benchmark(ABC):
-    def __init__(self, embeddings: Tuple[Union[gensim.models.KeyedVectors], str, str],
+    def __init__(self, embeddings: Tuple[Union[gensim.models.KeyedVectors], str, str, str],
                  umls_mapper: UMLSMapper,
                  umls_evaluator: UMLSEvaluator = None):
-        self.vectors, self.dataset, self.algorithm = embeddings
+        self.vectors, self.dataset, self.algorithm, self.preprocessing = embeddings
         try:
             self.vocab = self.vectors.vocab
         except AttributeError:
@@ -480,13 +481,14 @@ class HumanAssessmentTypes(Enum):
 class HumanAssessment(Benchmark):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str],
                  umls_mapper: UMLSMapper,
-                 srs_evaluator: SRSEvaluator):
+                 srs_evaluator: SRSEvaluator,
+                 use_spearman: bool=True):
         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
         self.srs_evaluator = srs_evaluator
+        self.use_spearman = use_spearman
 
     def get_mae(self, human_assessment_dict):
         sigma = []
-
         for concept, other_concepts in human_assessment_dict.items():
             concept_vec = self.get_concept_vector(concept)
             if concept_vec is not None:
@@ -495,28 +497,47 @@ class HumanAssessment(Benchmark):
                     if other_concept_vec is not None:
                         distance = abs(human_assessment_dict[concept][other_concept]
                                        - self.cosine(vector1=concept_vec, vector2=other_concept_vec))
-                        # .similarity(concept, other_concept))
                         sigma.append(distance)
-            #         else:
-            #             sigma.append(1)
-            # else:
-            #     sigma.append(1)
 
         print(f'found {len(sigma)} assessments in embeddings')
         return sum(sigma) / len(sigma)
 
+    def get_spearman(self, human_assessment_dict):
+        human_assessment_values = []
+        cosine_values = []
+        for concept, other_concepts in human_assessment_dict.items():
+            concept_vec = self.get_concept_vector(concept)
+            if concept_vec is not None:
+                for other_concept in other_concepts:
+                    other_concept_vec = self.get_concept_vector(other_concept)
+                    if other_concept_vec is not None:
+                        human_assessment_values.append(human_assessment_dict[concept][other_concept])
+                        cosine_values.append(self.cosine(vector1=concept_vec, vector2=other_concept_vec))
+        cor, p = spearmanr(human_assessment_values, cosine_values)
+        return cor
+
     def human_assessments(self, human_assestment_type: HumanAssessmentTypes):
-        if human_assestment_type == HumanAssessmentTypes.RELATEDNESS:
-            return self.get_mae(self.srs_evaluator.human_relatedness)
-        elif human_assestment_type == HumanAssessmentTypes.SIMILARITY_CONT:
-            return self.get_mae(self.srs_evaluator.human_similarity_cont)
+        if not self.use_spearman:
+            if human_assestment_type == HumanAssessmentTypes.RELATEDNESS:
+                return self.get_mae(self.srs_evaluator.human_relatedness)
+            elif human_assestment_type == HumanAssessmentTypes.SIMILARITY_CONT:
+                return self.get_mae(self.srs_evaluator.human_similarity_cont)
+            else:
+                return self.get_mae(self.srs_evaluator.human_relatedness_cont)
         else:
-            return self.get_mae(self.srs_evaluator.human_relatedness_cont)
+            if human_assestment_type == HumanAssessmentTypes.RELATEDNESS:
+                return self.get_spearman(self.srs_evaluator.human_relatedness)
+            elif human_assestment_type == HumanAssessmentTypes.SIMILARITY_CONT:
+                return self.get_spearman(self.srs_evaluator.human_similarity_cont)
+            else:
+                return self.get_spearman(self.srs_evaluator.human_relatedness_cont)
 
     def evaluate(self) -> float:
-        assessments = [HumanAssessmentTypes.SIMILARITY_CONT,
-                       HumanAssessmentTypes.RELATEDNESS,
-                       HumanAssessmentTypes.RELATEDNESS_CONT]
+        assessments = [
+            HumanAssessmentTypes.SIMILARITY_CONT,
+            # HumanAssessmentTypes.RELATEDNESS,
+            # HumanAssessmentTypes.RELATEDNESS_CONT
+        ]
         scores = []
         for assessment in assessments:
             score = self.human_assessments(assessment)

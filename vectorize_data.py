@@ -67,7 +67,7 @@ def preprocess(tokens: List[str] = None, documents: List[List[str]] = None, lemm
         return preprocessed_documents
 
 
-def sentence_data2vec(path: str, embedding_name: str,
+def sentence_data2vec(path: Union[str, List[str]], embedding_name: str,
                       embeddings_algorithm: Union[str, gensim.models.Word2Vec, gensim.models.FastText] = "word2vec",
                       number_sentences: int = None,
                       use_phrases: bool = False,
@@ -82,7 +82,12 @@ def sentence_data2vec(path: str, embedding_name: str,
         embeddings_algorithm = Embeddings.glove_vectors
 
     umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
-    data_sentences = DataHandler.lines_from_file(path=path)
+    if isinstance(path, list):
+        data_sentences = []
+        for p in path:
+            data_sentences.extend(DataHandler.lines_from_file(path=p))
+    else:
+        data_sentences = DataHandler.lines_from_file(path=path)
     if number_sentences:
         data_sentences = data_sentences[:number_sentences]
     print((data_sentences[:10]))
@@ -161,7 +166,7 @@ def main():
     # sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
     #                   embedding_name="GGPONC_fastText",
     #                   embeddings_algorithm="fastText")
-    # check: still nan error?
+    # #fixme check: still nan error?
     sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
                       embedding_name="GGPONC_glove",
                       embeddings_algorithm="Glove")
@@ -194,6 +199,93 @@ def main():
     # sentence_data2vec(path=path,
     #                   embedding_name="PubMed",
     #                   embeddings_algorithm="word2vec")
+
+    # Medical Concat
+    # paths = [
+    #     "E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
+    #     "E:/AML4DH-DATA/JSynCC/jsynncc-sentences.txt",
+    #     "E:/AML4DH-DATA/german_pubmed/all_sentences.txt"
+    # ]
+    # sentence_data2vec(path=paths,
+    #                   embedding_name="German_Medical",
+    #                   embeddings_algorithm="word2vec",
+    #                   umls_replacement=True,
+    #                   use_multiterm_replacement=True
+    #                   )
+    #
+    # sentence_data2vec(path=paths,
+    #                   embedding_name="German_Medical_plain",
+    #                   embeddings_algorithm="word2vec",
+    #                   umls_replacement=True,
+    #                   use_multiterm_replacement=False
+    #                   )
+    #
+    # sentence_data2vec(path=paths,
+    #                   embedding_name="German_Medical_no_cui",
+    #                   embeddings_algorithm="word2vec",
+    #                   umls_replacement=False
+    #                   )
+
+    # sentence_data2vec(path=paths,
+    #                   embedding_name="German_Medical_fastText",
+    #                   embeddings_algorithm="fastText",
+    #                   umls_replacement=True,
+    #                   use_multiterm_replacement=True
+    #                   )
+    #
+    # sentence_data2vec(path=paths,
+    #                   embedding_name="German_Medical_fastText_plain",
+    #                   embeddings_algorithm="fastText",
+    #                   umls_replacement=True,
+    #                   use_multiterm_replacement=False
+    #                   )
+    #
+    # sentence_data2vec(path=paths,
+    #                   embedding_name="German_Medical_fastText_no_cui",
+    #                   embeddings_algorithm="fastText",
+    #                   umls_replacement=False
+    #                   )
+
+    # sentence_data2vec(path=paths,
+    #                   embedding_name="German_Medical_Glove",
+    #                   embeddings_algorithm="Glove",
+    #                   umls_replacement=True,
+    #                   use_multiterm_replacement=True
+    #                   )
+    #
+    # sentence_data2vec(path=paths,
+    #                   embedding_name="German_Medical_Glove_plain",
+    #                   embeddings_algorithm="Glove",
+    #                   umls_replacement=True,
+    #                   use_multiterm_replacement=False
+    #                   )
+    #
+    # sentence_data2vec(path=paths,
+    #                   embedding_name="German_Medical_Glove_no_cui",
+    #                   embeddings_algorithm="Glove",
+    #                   umls_replacement=False
+    #                   )
+
+    # paths = [
+    #     "E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences_JULIE.txt",
+    #     "E:/AML4DH-DATA/JSynCC/jsynncc-sentences_JULIE.txt",
+    #     "E:/AML4DH-DATA/german_pubmed/all_sentences_JULIE.txt"
+    # ]
+    # sentence_data2vec(path=paths,
+    #                   embedding_name="German_Medical_JULIE",
+    #                   embeddings_algorithm="word2vec",
+    #                   umls_replacement=False
+    #                   )
+    # sentence_data2vec(path=paths,
+    #                   embedding_name="German_Medical_fastText_JULIE",
+    #                   embeddings_algorithm="fastText",
+    #                   umls_replacement=False
+    #                   )
+    # sentence_data2vec(path=paths,
+    #                   embedding_name="German_Medical_Glove_JULIE",
+    #                   embeddings_algorithm="Glove",
+    #                   umls_replacement=False
+    #                   )
 
     # # load sentences
     # # https://www.kaggle.com/rtatman/3-million-german-sentences/data?select=deu_news_2015_3M-sentences.txt

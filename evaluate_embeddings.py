@@ -5,6 +5,7 @@ from benchmarks import *
 from embeddings import Embeddings
 from evaluation_resource import NDFEvaluator, SRSEvaluator
 import pandas as pd
+from collections import namedtuple
 
 
 class Evaluation:
@@ -101,33 +102,57 @@ def assign_concepts_to_vecs(vectors: gensim.models.KeyedVectors, umls_mapper: UM
 
 def main():
     umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
-    ggponc_vecs_fasttext = (Embeddings.load(path="data/GGPONC_fastText_all.kv"), "GGPONC", "fastText")
-    ggponc_vecs_glove = (Embeddings.load(path="data/GGPONC_glove_all.kv"), "GGPONC", "Glove")
-    ggponc_vecs = (Embeddings.load(path="data/no_prep_vecs_test_all.kv"), "GGPONC", "word2vec")
-    ggponc_vecs_julie = (Embeddings.load(path="data/GGPONC_JULIE_all.kv"), "GGPONC JULIE", "word2vec")
-    ggponc_vecs_no_cui = (assign_concepts_to_vecs(Embeddings.load(path="data/GGPONC_no_cui_all.kv"), umls_mapper),
-                          "GGPONC NO CUI", "word2vec")
-    ggponc_vecs_plain = (Embeddings.load(path="data/GGPONC_plain_all.kv"), "GGPONC plain", "word2vec")
+    Embedding = namedtuple('Embedding', 'vectors dataset algorithm')
 
-    # https://devmount.github.io/GermanWordEmbeddings/
-    # pretrained_wiki_news_vecs = (word2vec.KeyedVectors.load_word2vec_format('E:/german.model', binary=True),
-    #                              "Wikipedia + News 2015", "word2vec")
-    #
-    # pretrained_wiki_news_vecs = (assign_concepts_to_vecs(pretrained_wiki_news_vecs[0], umls_mapper),
-    #                              "Wikipedia + News 2015", "word2vec")
+    embeddings_to_benchmark = [
+        # GGPONC
+        Embedding(Embeddings.load(path="data/no_prep_vecs_test_all.kv"), "GGPONC", "word2vec"),
+        Embedding(Embeddings.load(path="data/GGPONC_plain_all.kv"), "GGPONC plain", "word2vec"),
+        Embedding(Embeddings.load(path="data/GGPONC_JULIE_all.kv"), "GGPONC JULIE", "word2vec"),
+        Embedding(assign_concepts_to_vecs(Embeddings.load(path="data/GGPONC_no_cui_all.kv"), umls_mapper),
+                  "GGPONC NO CUI", "word2vec"),
+        Embedding(Embeddings.load(path="data/GGPONC_fastText_all.kv"), "GGPONC", "fastText"),
+        Embedding(Embeddings.load(path="data/GGPONC_glove_all.kv"), "GGPONC", "Glove"),
+        # Pretrained
+        # https://devmount.github.io/GermanWordEmbeddings/
+        # Embedding(assign_concepts_to_vecs(word2vec.KeyedVectors.load_word2vec_format('E:/german.model', binary=True),
+        #                                   umls_mapper), "Wikipedia + News 2015", "word2vec")
+        # News
+        Embedding(Embeddings.load(path="data/60K_news_all.kv"), "News 60K", "word2vec"),
+        Embedding(Embeddings.load(path="data/60K_news_plain_all.kv"), "News 60K plain", "word2vec"),
+        Embedding(Embeddings.load(path="data/60K_news_JULIE_all.kv"), "News 60K JULIE", "word2vec"),
+        Embedding(assign_concepts_to_vecs(Embeddings.load(path="data/60K_news_no_cui_all.kv"), umls_mapper),
+                  "News 60K NO CUI", "word2vec"),
+        Embedding(Embeddings.load(path="data/60K_news_all.kv"), "News 60K", "fastText"),
+        Embedding(Embeddings.load(path="data/60K_news_glove_all.kv"), "News 60K", "Glove"),
+        Embedding(Embeddings.load(path="data/500K_news_all.kv"), "News 500K", "word2vec"),
+        # Embedding(Embeddings.load(path="data/3M_news_all.kv"), "News 3M", "word2vec"),
+        # JSynCC
+        Embedding(Embeddings.load(path="data/JSynCC_all.kv"), "JSynCC", "word2vec"),
+        # PubMed
+        Embedding(Embeddings.load(path="data/PubMed_all.kv"), "PubMed", "word2vec"),
+        # German Medical Concatenation
+        Embedding(Embeddings.load(path="data/German_Medical_all.kv"), "GerVec", "word2vec"),
+        Embedding(Embeddings.load(path="data/German_Medical_plain_all.kv"), "GerVec plain", "word2vec"),
+        Embedding(Embeddings.load(path="data/German_Medical_JULIE_all.kv"), "GerVec JULIE", "word2vec"),
+        Embedding(assign_concepts_to_vecs(Embeddings.load(path="data/German_Medical_no_cui_all.kv"), umls_mapper),
+                  "GerVec NO CUI", "word2vec"),
+        Embedding(Embeddings.load(path="data/German_Medical_fastText_all.kv"), "GerVec", "fastText"),
+        Embedding(Embeddings.load(path="data/German_Medical_fastText_plain_all.kv"), "GerVec plain",
+                  "fastText"),
+        Embedding(Embeddings.load(path="data/German_Medical_fastText_JULIE_all.kv"), "GerVec JULIE",
+                  "fastText"),
+        Embedding(assign_concepts_to_vecs(Embeddings.load(path="data/German_Medical_fastText_no_cui_all.kv"),
+                                          umls_mapper), "GerVec NO CUI", "fastText"),
+        Embedding(Embeddings.load(path="data/German_Medical_all.kv"), "GerVec", "Glove"),
+        Embedding(Embeddings.load(path="data/German_Medical_Glove_plain_all.kv"), "GerVec plain",
+                  "Glove"),
+        Embedding(Embeddings.load(path="data/German_Medical_Glove_JULIE_all.kv"), "GerVec JULIE",
+                  "Glove"),
+        Embedding(assign_concepts_to_vecs(Embeddings.load(path="data/German_Medical_Glove_no_cui_all.kv"), umls_mapper),
+                  "GerVec NO CUI", "Glove")
+    ]
 
-    news_vecs = (Embeddings.load(path="data/60K_news_all.kv"), "News 60K", "word2vec")
-    news_vecs_big = (Embeddings.load(path="data/500K_news_all.kv"), "News 500K", "word2vec")
-    # news_vecs_big_3M = (Embeddings.load(path="data/3M_news_all.kv"), "News 3M", "word2vec")
-    news_vecs_fasttext = (Embeddings.load(path="data/60K_news_all.kv"), "News 60K", "fastText")
-    news_vecs_glove = (Embeddings.load(path="data/60K_news_glove_all.kv"), "News 60K", "Glove")
-    news_vecs_julie = (Embeddings.load(path="data/60K_news_JULIE_all.kv"), "News 60K JULIE", "word2vec")
-    news_vecs_no_cui = (assign_concepts_to_vecs(Embeddings.load(path="data/60K_news_no_cui_all.kv"), umls_mapper),
-                        "News 60K NO CUI", "word2vec")
-    news_vecs_plain = (Embeddings.load(path="data/60K_news_plain_all.kv"), "News 60K plain", "word2vec")
-
-    jsyncc_vecs = (Embeddings.load(path="data/JSynCC_all.kv"), "JSynCC", "word2vec")
-    pubmed_vecs = (Embeddings.load(path="data/PubMed_all.kv"), "PubMed", "word2vec")
 
     # fasttext_model = load_fasttext_model('E://cc.de.300.bin')
     # fasttext_vecs = (load_facebook_model('E:/cc.de.300.bin'), "common crawl", "fastText")
@@ -140,21 +165,16 @@ def main():
 
     benchmarks_to_use = [
         HumanAssessment,
-        CategoryBenchmark,
+        # CategoryBenchmark,
         # SemanticTypeBeam,
         # SilhouetteCoefficient,
         # ChoiBenchmark
     ]
 
-    evaluation = Evaluation([
-                             news_vecs, news_vecs_big, news_vecs_fasttext, news_vecs_glove,
-                             news_vecs_julie, news_vecs_no_cui, news_vecs_plain,
-                             ggponc_vecs, ggponc_vecs_fasttext,
-                             ggponc_vecs_glove,
-                             ggponc_vecs_julie, ggponc_vecs_no_cui, ggponc_vecs_plain,
-                             jsyncc_vecs, pubmed_vecs
-                            ],
-                            umls_mapper, umls_evaluator, ndf_evaluator, srs_evaluator, benchmarks_to_use)
+    evaluation = Evaluation(embeddings_to_benchmark,
+                            umls_mapper, umls_evaluator, ndf_evaluator, srs_evaluator,
+                            benchmarks_to_use)
+
     evaluation.evaluate()
 
     # benchmark.category_benchmark("Nucleotide Sequence")

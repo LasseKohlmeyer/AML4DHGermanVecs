@@ -237,6 +237,11 @@ class Embeddings:
         return gensim.models.KeyedVectors.load(path)
 
     @staticmethod
+    def load_w2v_format(path: str, binary=False) -> gensim.models.KeyedVectors:
+        print(f"load embedding of file {path}...")
+        return gensim.models.KeyedVectors.load_word2vec_format(path, binary=binary)
+
+    @staticmethod
     def transform_glove_in_word2vec(glove_input_file: str, word2vec_output_file: str):
         glove2word2vec(glove_input_file, word2vec_output_file)
 

@@ -30,7 +30,14 @@ class Evaluation:
                 self.benchmarks.append(
                     ChoiConceptualSimilarity(embedding, umls_mapper, umls_evaluator, ndf_evaluator))
             if ChoiMedicalRelatedness in benchmark_classes:
-                self.benchmarks.append(ChoiMedicalRelatedness(embedding, umls_mapper, umls_evaluator, ndf_evaluator))
+                self.benchmarks.append(ChoiMedicalRelatedness(embedding, umls_mapper, umls_evaluator, ndf_evaluator,
+                                                              Relation.MAY_TREAT))
+            if ChoiMedicalRelatednessMayTreat in benchmark_classes:
+                self.benchmarks.append(ChoiMedicalRelatednessMayTreat(embedding, umls_mapper, umls_evaluator,
+                                                                      ndf_evaluator))
+            if ChoiMedicalRelatednessMayPrevent in benchmark_classes:
+                self.benchmarks.append(ChoiMedicalRelatednessMayPrevent(embedding, umls_mapper, umls_evaluator,
+                                                                        ndf_evaluator))
             if HumanAssessment in benchmark_classes:
                 self.benchmarks.append(HumanAssessment(embedding, umls_mapper, srs_evaluator))
 
@@ -43,11 +50,10 @@ class Evaluation:
             nr_vectors = len(benchmark.vocab)
             actual_umls_terms = set(benchmark.umls_mapper.umls_reverse_dict.keys()).intersection(set(benchmark.vocab.keys()))
             umls_cov = len(actual_umls_terms) / len(benchmark.umls_mapper.umls_dict.keys())
-            tuples.append((benchmark.dataset, benchmark.algorithm, benchmark.preprocessing,
-                           benchmark.__class__.__name__, score, nr_concepts, nr_vectors, umls_cov))
+            tuples.append((benchmark.dataset, benchmark.algorithm, benchmark.preprocessing, score, nr_concepts, nr_vectors, umls_cov, benchmark.__class__.__name__, ))
 
-        df = pd.DataFrame(tuples, columns=['Data set', 'Algorithm', 'Preprocessing', 'Benchmark', 'Score', '# Concepts',
-                                           '# Words', 'UMLS Coverage'])
+        df = pd.DataFrame(tuples, columns=['Data set', 'Algorithm', 'Preprocessing', 'Score', '# Concepts',
+                                           '# Words', 'UMLS Coverage', 'Benchmark'])
         df["CUI Coverage"] = (df["# Concepts"] / df["# Words"])
         print(df)
         df.to_csv('data/benchmark_results1.csv', index=False, encoding="utf-8")
@@ -58,9 +64,9 @@ class Evaluation:
             used_benchmarks_dict["Algorithm"].append(row["Algorithm"])
             used_benchmarks_dict["# Concepts"].append(row["# Concepts"])
             used_benchmarks_dict["# Words"].append(row["# Words"])
-            used_benchmarks_dict[row["Benchmark"]].append(row["Score"])
             used_benchmarks_dict["CUI Coverage"].append(row["CUI Coverage"])
             used_benchmarks_dict["UMLS Coverage"].append(row["UMLS Coverage"])
+            used_benchmarks_dict[row["Benchmark"]].append(row["Score"])
 
         number_benchmarks = len(set(df["Benchmark"]))
         reformat = ["Data set", "Algorithm", "Preprocessing", "# Concepts", "# Words", "CUI Coverage", "UMLS Coverage"]
@@ -121,11 +127,11 @@ def main():
     embeddings_to_benchmark = [
         # Related Work
         Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/claims_cuis_hs_300.txt'), "Claims", "word2vec", "UNK"),
-        Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/DeVine_etal_200.txt'), "DeVine et al", "word2vec", "UNK"),
-        Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/stanford_cuis_svd_300.txt'), "Stanford", "word2vec", "UNK"),
+        # Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/DeVine_etal_200.txt'), "DeVine et al", "word2vec", "UNK"),
+        # Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/stanford_cuis_svd_300.txt'), "Stanford", "word2vec", "UNK"),
         # GGPONC
-        Embedding(Embeddings.load(path="data/no_prep_vecs_test_all.kv"), "GGPONC", "word2vec", "multi-term"),
-        Embedding(Embeddings.load(path="data/GGPONC_plain_all.kv"), "GGPONC", "word2vec", "single-term"),
+        # Embedding(Embeddings.load(path="data/no_prep_vecs_test_all.kv"), "GGPONC", "word2vec", "multi-term"),
+        # Embedding(Embeddings.load(path="data/GGPONC_plain_all.kv"), "GGPONC", "word2vec", "single-term"),
         # Embedding(Embeddings.load(path="data/GGPONC_JULIE_all.kv"), "GGPONC", "word2vec", "JULIE"),
         # Embedding(assign_concepts_to_vecs(Embeddings.load(path="data/GGPONC_no_cui_all.kv"), umls_mapper),
         #           "GGPONC", "word2vec", "SE CUI"),
@@ -186,8 +192,9 @@ def main():
         # SemanticTypeBeam,
         # SilhouetteCoefficient,
         # ChoiBenchmark
-        ChoiConceptualSimilarity,
-        # ChoiMedicalRelatedness
+        # ChoiConceptualSimilarity,
+        ChoiMedicalRelatednessMayTreat,
+        ChoiMedicalRelatednessMayPrevent
     ]
 
     evaluation = Evaluation(embeddings_to_benchmark,

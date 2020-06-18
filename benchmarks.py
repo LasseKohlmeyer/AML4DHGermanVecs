@@ -1,4 +1,5 @@
 import math
+import random
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from enum import Enum
@@ -16,7 +17,8 @@ from tqdm import tqdm
 import constant
 from UMLS import UMLSMapper, UMLSEvaluator
 from evaluation_resource import NDFEvaluator, SRSEvaluator
-
+from joblib import Parallel, delayed
+import multiprocessing
 
 def revert_list_dict(dictionary: Dict[str, Set[str]], filter_collection: Iterable = None) -> Dict[str, Set[str]]:
     reverted_dictionary = defaultdict(set)
@@ -129,7 +131,7 @@ class Benchmark(ABC):
 
 
 class CategoryBenchmark(Benchmark):
-    def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str],
+    def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
                  umls_evaluator: UMLSEvaluator):
         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)
@@ -210,7 +212,7 @@ class CategoryBenchmark(Benchmark):
 
 
 class SilhouetteCoefficient(Benchmark):
-    def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str],
+    def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
                  umls_evaluator: UMLSEvaluator):
         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)
@@ -280,7 +282,7 @@ class SilhouetteCoefficient(Benchmark):
 
 
 class EmbeddingSilhouetteCoefficient(Benchmark):
-    def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str],
+    def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
                  umls_evaluator: UMLSEvaluator):
         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)
@@ -354,8 +356,8 @@ class Relation(Enum):
     MAY_PREVENT = "may_prevent"
 
 
-class ChoiBenchmark(Benchmark):
-    def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str],
+class ChoiConceptualSimilarity(Benchmark):
+    def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
                  umls_evaluator: UMLSEvaluator,
                  ndf_evaluator: NDFEvaluator):
@@ -374,23 +376,25 @@ class ChoiBenchmark(Benchmark):
                       'Neoplastic Process',
                       'Clinical Drug',
                       'Finding',
-                      'Injury or Poisoning'
+                      'Injury or Poisoning',
                       ]
 
+        results = []
         for category in categories:
-            print(f'{category}: {self.mcsm(category)}')
-
-        relations = [
-            Relation.MAY_TREAT,
-            Relation.MAY_PREVENT
-        ]
-        for relation in relations:
-            mean, max_value = self.run_mrm(relation=relation)
-            print(f'{relation} - mean: {mean}, max: {max_value}')
+            category_result = self.mcsm(category)
+            print(f'{self.dataset}|{self.preprocessing}|{self.algorithm} [{category}]: {category_result}')
+            results.append(category_result)
+        return sum(results)/len(results)
 
     def mcsm(self, category, k=40):
-        def category_true(concept, semantic_category):
-            if semantic_category in self.concept2category[concept]:
+        # V: self.concept2category.keys()
+        # T: category
+        # k: k
+        # V(t): v_t = self.category2concepts[category]
+        # 1T: category_true
+
+        def category_true(concept_neighbor, semantic_category):
+            if semantic_category in self.concept2category[concept_neighbor]:
                 return 1
             else:
                 return 0
@@ -400,52 +404,73 @@ class ChoiBenchmark(Benchmark):
             return 0
 
         sigma = 0
+
         for v in v_t:
+            neighbors = self.vectors.most_similar(v, topn=k)
             for i in range(0, k):
-                neighbors = self.vectors.most_similar(v, topn=k)
                 v_i = neighbors[i][0]
-                # if word not in resource file ignore it
+
                 if v_i in self.concept2category:
                     sigma += category_true(v_i, category) / math.log((i + 1) + 1, 2)
+                # else: sigma += 0 (if neighbor not CUI ignore it)
         return sigma / len(v_t)
 
-    def mrm(self, relation_dictionary, relation_dictionary_reversed, v_star, seed_pair: Tuple[str, str] = None, k=40):
+
+class ChoiMedicalRelatedness(Benchmark):
+    def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
+                 umls_mapper: UMLSMapper,
+                 umls_evaluator: UMLSEvaluator,
+                 ndf_evaluator: NDFEvaluator,
+                 relation: Relation):
+        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
+        self.ndf_evaluator = ndf_evaluator
+        self.umls_evaluator = umls_evaluator
+
+        self.concept2category = {concept: category for concept, category in self.umls_evaluator.concept2category.items()
+                                 if concept in self.vocab}
+
+        self.category2concepts = revert_list_dict(self.concept2category)
+        self.relation = relation
+
+    def evaluate(self):
+        mean, max_value = self.run_mrm(relation=self.relation, sample=100)
+        print(f'{self.relation} - mean: {mean}, max: {max_value}')
+
+        return mean, max_value
+
+    def mrm(self, relation_dictionary, relation_dictionary_reversed, v_star, seed_pair: Tuple[str, str] = None,
+            k=40):
+        # V: self.concept2category.keys()
+        # R: relation_dictionary, relation_dictionary_reversed
+        # k: k
+        # V*: v_star
+        # with the given relation
+        # V(t): v_t = self.category2concepts[category]
+        # 1R: relation_true
+        # s: seed_pair
         def relation_true(selected_concept, concepts):
             for concept in concepts:
                 related_terms = relation_dictionary.get(selected_concept)
                 if related_terms and concept in related_terms:
                     return 1
 
-                inverse_related_terms = relation_dictionary_reversed.get(selected_concept)
-                if inverse_related_terms and concept in inverse_related_terms:
-                    return 1
             return 0
 
-        def get_seed_pair():
-            for key, values in relation_dictionary.items():
-                if key in v_star:
-                    for value in values:
-                        if value in v_star:
-                            return key, value
+        s_difference = self.get_concept_vector(seed_pair[0]) - self.get_concept_vector(seed_pair[1])
 
-            return self.umls_mapper.umls_dict["Cisplatin"], self.umls_mapper.umls_dict["Carboplatin"]
-
-        if seed_pair is None:
-            seed_pair = get_seed_pair()
-
-        s = self.vectors.get_vector(seed_pair[0]) - self.vectors.get_vector(seed_pair[1])
-
-        sigma = 0
-
-        for v in v_star:
-            neighbors = self.vectors.most_similar(positive=[self.vectors.get_vector(v) - s], topn=k)
+        def compute_neighbor_relations(v, v_vector, s, vectors):
+            neighbors = vectors.most_similar(positive=[v_vector - s], topn=k)
             neighbors = [tupl[0] for tupl in neighbors]
+            return relation_true(selected_concept=v, concepts=neighbors)
 
-            sigma += relation_true(selected_concept=v, concepts=neighbors)
-        return sigma / len(v_star)
+        num_cores = multiprocessing.cpu_count()
+        results = Parallel(n_jobs=num_cores, backend="threading")(delayed(compute_neighbor_relations)
+                                                                  (v_star_i, self.get_concept_vector(v_star_i),
+                                                                   s_difference, self.vectors)
+                                                                  for v_star_i in v_star)
+        return sum(results) / len(v_star)
 
-    def run_mrm(self, relation: Relation):
-
+    def run_mrm(self, relation: Relation, sample: int = None):
         if relation == Relation.MAY_TREAT:
             relation_dict = self.ndf_evaluator.may_treat
             relation_dict_reversed = self.ndf_evaluator.reverted_treat
@@ -454,22 +479,168 @@ class ChoiBenchmark(Benchmark):
             relation_dict_reversed = self.ndf_evaluator.reverted_prevent
 
         v_star = set(relation_dict.keys())
-        v_star.update(relation_dict_reversed.keys())
-        v_star = [concept for concept in v_star if concept in self.vocab]
+        v_star = list(v_star)
+        # v_star = [concept for concept in v_star if concept in self.vocab]
+
+        seed_pairs = [(substance, disease) for substance, diseases in relation_dict.items() for disease in diseases]
+
+        if sample:
+            random.seed(42)
+            seed_pairs = random.sample(seed_pairs, 100)
+
+        tqdm_progress = tqdm(seed_pairs, total=len(seed_pairs))
+
+        # results = Parallel(n_jobs=multiprocessing.cpu_count(), backend="threading") \
+        #     (delayed(self.mrm)(relation_dict, relation_dict_reversed, v_star, seed_pair=seed_pair, k=40)
+        #      for seed_pair in tqdm_progress)
 
         results = []
-        tqdm_progress = tqdm(relation_dict.items(), total=len(relation_dict.keys()))
-        for key, values in tqdm_progress:
-            if key in v_star:
-                for value in values:
-                    if value in v_star:
-                        results.append(self.mrm(relation_dict, relation_dict_reversed, v_star,
-                                                seed_pair=(key, value), k=40))
-                        tqdm_progress.set_description(f'{key}: [{results[-1]:.5f}, {sum(results) / len(results):.5f}, '
-                                                      f'{max(results):.5f}]')
-                        tqdm_progress.update()
+        for seed_pair in tqdm_progress:
+            results.append(self.mrm(relation_dict, relation_dict_reversed, v_star, seed_pair=seed_pair, k=40))
+            tqdm_progress.set_description(
+                f'{seed_pair[0]}: [{results[-1]:.5f}, {sum(results) / len(results):.5f}, '
+                f'{max(results):.5f}]')
+            tqdm_progress.update()
 
         return sum(results) / len(results), max(results)
+
+
+class ChoiMedicalRelatednessMayTreat(ChoiMedicalRelatedness):
+    def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
+                 umls_mapper: UMLSMapper,
+                 umls_evaluator: UMLSEvaluator,
+                 ndf_evaluator: NDFEvaluator):
+        super().__init__(embeddings=embeddings,
+                         umls_mapper=umls_mapper, umls_evaluator=umls_evaluator, ndf_evaluator=ndf_evaluator,
+                         relation=Relation.MAY_TREAT)
+
+
+class ChoiMedicalRelatednessMayPrevent(ChoiMedicalRelatedness):
+    def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
+                 umls_mapper: UMLSMapper,
+                 umls_evaluator: UMLSEvaluator,
+                 ndf_evaluator: NDFEvaluator):
+        super().__init__(embeddings=embeddings,
+                         umls_mapper=umls_mapper, umls_evaluator=umls_evaluator, ndf_evaluator=ndf_evaluator,
+                         relation=Relation.MAY_PREVENT)
+
+
+# class ChoiBenchmark(Benchmark):
+#     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
+#                  umls_mapper: UMLSMapper,
+#                  umls_evaluator: UMLSEvaluator,
+#                  ndf_evaluator: NDFEvaluator):
+#         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
+#         self.ndf_evaluator = ndf_evaluator
+#         self.umls_evaluator = umls_evaluator
+#
+#         self.concept2category = {concept: category for concept, category in self.umls_evaluator.concept2category.items()
+#                                  if concept in self.vocab}
+#
+#         self.category2concepts = revert_list_dict(self.concept2category)
+#
+#     def evaluate(self):
+#         categories = ['Pharmacologic Substance',
+#                       'Disease or Syndrome',
+#                       'Neoplastic Process',
+#                       'Clinical Drug',
+#                       'Finding',
+#                       'Injury or Poisoning'
+#                       ]
+#
+#         for category in categories:
+#             print(f'{category}: {self.mcsm(category)}')
+#
+#         relations = [
+#             Relation.MAY_TREAT,
+#             Relation.MAY_PREVENT
+#         ]
+#         for relation in relations:
+#             mean, max_value = self.run_mrm(relation=relation)
+#             print(f'{relation} - mean: {mean}, max: {max_value}')
+#
+#     def mcsm(self, category, k=40):
+#         def category_true(concept, semantic_category):
+#             if semantic_category in self.concept2category[concept]:
+#                 return 1
+#             else:
+#                 return 0
+#
+#         v_t = self.category2concepts[category]
+#         if len(v_t) == 0:
+#             return 0
+#
+#         sigma = 0
+#         for v in v_t:
+#             for i in range(0, k):
+#                 neighbors = self.vectors.most_similar(v, topn=k)
+#                 v_i = neighbors[i][0]
+#                 # if word not in resource file ignore it
+#                 if v_i in self.concept2category:
+#                     sigma += category_true(v_i, category) / math.log((i + 1) + 1, 2)
+#         return sigma / len(v_t)
+#
+#     def mrm(self, relation_dictionary, relation_dictionary_reversed, v_star, seed_pair: Tuple[str, str] = None, k=40):
+#         def relation_true(selected_concept, concepts):
+#             for concept in concepts:
+#                 related_terms = relation_dictionary.get(selected_concept)
+#                 if related_terms and concept in related_terms:
+#                     return 1
+#
+#                 inverse_related_terms = relation_dictionary_reversed.get(selected_concept)
+#                 if inverse_related_terms and concept in inverse_related_terms:
+#                     return 1
+#             return 0
+#
+#         def get_seed_pair():
+#             for key, values in relation_dictionary.items():
+#                 if key in v_star:
+#                     for value in values:
+#                         if value in v_star:
+#                             return key, value
+#
+#             return self.umls_mapper.umls_dict["Cisplatin"], self.umls_mapper.umls_dict["Carboplatin"]
+#
+#         if seed_pair is None:
+#             seed_pair = get_seed_pair()
+#
+#         s = self.vectors.get_vector(seed_pair[0]) - self.vectors.get_vector(seed_pair[1])
+#
+#         sigma = 0
+#
+#         for v in v_star:
+#             neighbors = self.vectors.most_similar(positive=[self.vectors.get_vector(v) - s], topn=k)
+#             neighbors = [tupl[0] for tupl in neighbors]
+#
+#             sigma += relation_true(selected_concept=v, concepts=neighbors)
+#         return sigma / len(v_star)
+#
+#     def run_mrm(self, relation: Relation):
+#
+#         if relation == Relation.MAY_TREAT:
+#             relation_dict = self.ndf_evaluator.may_treat
+#             relation_dict_reversed = self.ndf_evaluator.reverted_treat
+#         else:
+#             relation_dict = self.ndf_evaluator.may_prevent
+#             relation_dict_reversed = self.ndf_evaluator.reverted_prevent
+#
+#         v_star = set(relation_dict.keys())
+#         v_star.update(relation_dict_reversed.keys())
+#         v_star = [concept for concept in v_star if concept in self.vocab]
+#
+#         results = []
+#         tqdm_progress = tqdm(relation_dict.items(), total=len(relation_dict.keys()))
+#         for key, values in tqdm_progress:
+#             if key in v_star:
+#                 for value in values:
+#                     if value in v_star:
+#                         results.append(self.mrm(relation_dict, relation_dict_reversed, v_star,
+#                                                 seed_pair=(key, value), k=40))
+#                         tqdm_progress.set_description(f'{key}: [{results[-1]:.5f}, {sum(results) / len(results):.5f}, '
+#                                                       f'{max(results):.5f}]')
+#                         tqdm_progress.update()
+#
+#         return sum(results) / len(results), max(results)
 
 
 class HumanAssessmentTypes(Enum):
@@ -479,7 +650,7 @@ class HumanAssessmentTypes(Enum):
 
 
 class HumanAssessment(Benchmark):
-    def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str],
+    def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
                  srs_evaluator: SRSEvaluator,
                  use_spearman: bool=True):
@@ -547,7 +718,7 @@ class HumanAssessment(Benchmark):
 
 
 class SemanticTypeBeam(Benchmark):
-    def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str],
+    def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
                  umls_evaluator: UMLSEvaluator):
         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)

@@ -170,18 +170,47 @@ class DataHandler:
         DataHandler.save(new_path, "\n".join(replaced_sentences))
 
 
+def replace_stanford_embeddings(emb_path: str, repl_path: str, new_path: str):
+    repl_lines = DataHandler.lines_from_file(repl_path)
+    look_up = {}
+    for line in repl_lines:
+        splitted = line.split()
+        if len(splitted) == 2:
+            look_up[splitted[0]] = splitted[1]
+        else:
+            print(splitted)
+
+    emb_lines = DataHandler.lines_from_file(emb_path)
+    new_lines = []
+    for line in emb_lines:
+        splitted = line.split()
+        if len(splitted) == 301:
+            if splitted[0] in look_up:
+                repl = look_up[splitted[0]]
+            else:
+                repl = splitted[0]
+            print(repl)
+            new_line = f'{repl} {" ".join(splitted[1:])}'
+        else:
+            new_line = line
+
+        new_lines.append(new_line)
+
+    DataHandler.save(new_path, "\n".join(new_lines))
+
+
 # DataHandler.julielab_replacements(file_path='E:\AML4DH-DATA\CPG-AMIA2020\Plain Text\cpg-sentences.txt',
 #                                   offset_path='E:\AML4DH-DATA\offsets\cpg_offsets.tsv',
 #                                   new_path='E:\AML4DH-DATA\CPG-AMIA2020\Plain Text\cpg-sentences_JULIE.txt')
 
 
-DataHandler.julielab_replacements(file_path='E:/AML4DH-DATA/JSynCC/jsynncc-sentences.txt',
-                                  offset_path='E:/AML4DH-DATA/offsets/jsynncc_offsets.tsv',
-                                  new_path='E:/AML4DH-DATA/JSynCC/jsynncc-sentences_JULIE.txt')
-
-DataHandler.julielab_replacements(file_path='E:/AML4DH-DATA/german_pubmed/all_sentences.txt',
-                                  offset_path='E:/AML4DH-DATA/offsets/pubmed_offsets.tsv',
-                                  new_path='E:/AML4DH-DATA/german_pubmed/all_sentences_JULIE.txt')
+# DataHandler.julielab_replacements(file_path='E:/AML4DH-DATA/JSynCC/jsynncc-sentences.txt',
+#                                   offset_path='E:/AML4DH-DATA/offsets/jsynncc_offsets.tsv',
+#                                   new_path='E:/AML4DH-DATA/JSynCC/jsynncc-sentences_JULIE.txt')
+#
+# DataHandler.julielab_replacements(file_path='E:/AML4DH-DATA/german_pubmed/all_sentences.txt',
+#                                   offset_path='E:/AML4DH-DATA/offsets/pubmed_offsets.tsv',
+#                                   new_path='E:/AML4DH-DATA/german_pubmed/all_sentences_JULIE.txt')
 
 
 # DataHandler.julielab_replacements(file_path='E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences.txt',
@@ -192,3 +221,4 @@ DataHandler.julielab_replacements(file_path='E:/AML4DH-DATA/german_pubmed/all_se
 # DataHandler.split_data('E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences.txt', 100000,
 #                        new_name='E:/AML4DH-DATA/2015_3M_sentences/news_2015_split')
 # DataHandler.read_files_and_save_sentences_to_dir("E:\AML4DH-DATA\german_pubmed")
+replace_stanford_embeddings('E:/AML4DH-DATA/stanford_cuis_svd_300.txt', 'E:/AML4DH-DATA/NDF/2b_concept_ID_to_CUI.txt', 'E:/AML4DH-DATA/stanford_umls_svd_300.txt')

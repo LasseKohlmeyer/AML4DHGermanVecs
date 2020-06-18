@@ -24,14 +24,12 @@ class Evaluation:
                 self.benchmarks.append(SemanticTypeBeam(embedding, umls_mapper, umls_evaluator))
             if SilhouetteCoefficient in benchmark_classes:
                 self.benchmarks.append(SilhouetteCoefficient(embedding, umls_mapper, umls_evaluator))
-            # if ChoiBenchmark in benchmark_classes:
-            #     self.benchmarks.append(ChoiBenchmark(embedding, umls_mapper, umls_evaluator, ndf_evaluator))
             if ChoiConceptualSimilarity in benchmark_classes:
                 self.benchmarks.append(
                     ChoiConceptualSimilarity(embedding, umls_mapper, umls_evaluator, ndf_evaluator))
-            if ChoiMedicalRelatedness in benchmark_classes:
-                self.benchmarks.append(ChoiMedicalRelatedness(embedding, umls_mapper, umls_evaluator, ndf_evaluator,
-                                                              Relation.MAY_TREAT))
+            # if ChoiMedicalRelatedness in benchmark_classes:
+            #     self.benchmarks.append(ChoiMedicalRelatedness(embedding, umls_mapper, umls_evaluator, ndf_evaluator,
+            #                                                   Relation.MAY_TREAT))
             if ChoiMedicalRelatednessMayTreat in benchmark_classes:
                 self.benchmarks.append(ChoiMedicalRelatednessMayTreat(embedding, umls_mapper, umls_evaluator,
                                                                       ndf_evaluator))
@@ -127,8 +125,8 @@ def main():
     embeddings_to_benchmark = [
         # Related Work
         Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/claims_cuis_hs_300.txt'), "Claims", "word2vec", "UNK"),
-        # Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/DeVine_etal_200.txt'), "DeVine et al", "word2vec", "UNK"),
-        # Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/stanford_cuis_svd_300.txt'), "Stanford", "word2vec", "UNK"),
+        Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/DeVine_etal_200.txt'), "DeVine et al", "word2vec", "UNK"),
+        Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/stanford_umls_svd_300.txt'), "Stanford", "word2vec", "UNK"),
         # GGPONC
         # Embedding(Embeddings.load(path="data/no_prep_vecs_test_all.kv"), "GGPONC", "word2vec", "multi-term"),
         # Embedding(Embeddings.load(path="data/GGPONC_plain_all.kv"), "GGPONC", "word2vec", "single-term"),
@@ -191,10 +189,9 @@ def main():
         # CategoryBenchmark,
         # SemanticTypeBeam,
         # SilhouetteCoefficient,
-        # ChoiBenchmark
-        # ChoiConceptualSimilarity,
-        ChoiMedicalRelatednessMayTreat,
-        ChoiMedicalRelatednessMayPrevent
+        ChoiConceptualSimilarity,
+        # ChoiMedicalRelatednessMayTreat,
+        # ChoiMedicalRelatednessMayPrevent
     ]
 
     evaluation = Evaluation(embeddings_to_benchmark,

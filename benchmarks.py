@@ -20,6 +20,7 @@ from evaluation_resource import NDFEvaluator, SRSEvaluator
 from joblib import Parallel, delayed
 import multiprocessing
 
+
 def revert_list_dict(dictionary: Dict[str, Set[str]], filter_collection: Iterable = None) -> Dict[str, Set[str]]:
     reverted_dictionary = defaultdict(set)
     for key, values in dictionary.items():
@@ -438,7 +439,7 @@ class ChoiMedicalRelatedness(Benchmark):
 
         return mean, max_value
 
-    def mrm(self, relation_dictionary, relation_dictionary_reversed, v_star, seed_pair: Tuple[str, str] = None,
+    def mrm(self, relation_dictionary, v_star, seed_pair: Tuple[str, str] = None,
             k=40):
         # V: self.concept2category.keys()
         # R: relation_dictionary, relation_dictionary_reversed
@@ -473,10 +474,10 @@ class ChoiMedicalRelatedness(Benchmark):
     def run_mrm(self, relation: Relation, sample: int = None):
         if relation == Relation.MAY_TREAT:
             relation_dict = self.ndf_evaluator.may_treat
-            relation_dict_reversed = self.ndf_evaluator.reverted_treat
+            # relation_dict_reversed = self.ndf_evaluator.reverted_treat
         else:
             relation_dict = self.ndf_evaluator.may_prevent
-            relation_dict_reversed = self.ndf_evaluator.reverted_prevent
+            # relation_dict_reversed = self.ndf_evaluator.reverted_prevent
 
         v_star = set(relation_dict.keys())
         v_star = list(v_star)
@@ -496,7 +497,7 @@ class ChoiMedicalRelatedness(Benchmark):
 
         results = []
         for seed_pair in tqdm_progress:
-            results.append(self.mrm(relation_dict, relation_dict_reversed, v_star, seed_pair=seed_pair, k=40))
+            results.append(self.mrm(relation_dict, v_star, seed_pair=seed_pair, k=40))
             tqdm_progress.set_description(
                 f'{seed_pair[0]}: [{results[-1]:.5f}, {sum(results) / len(results):.5f}, '
                 f'{max(results):.5f}]')
@@ -534,7 +535,8 @@ class ChoiMedicalRelatednessMayPrevent(ChoiMedicalRelatedness):
 #         self.ndf_evaluator = ndf_evaluator
 #         self.umls_evaluator = umls_evaluator
 #
-#         self.concept2category = {concept: category for concept, category in self.umls_evaluator.concept2category.items()
+#         self.concept2category = {concept: category
+#                                  for concept, category in self.umls_evaluator.concept2category.items()
 #                                  if concept in self.vocab}
 #
 #         self.category2concepts = revert_list_dict(self.concept2category)
@@ -636,8 +638,8 @@ class ChoiMedicalRelatednessMayPrevent(ChoiMedicalRelatedness):
 #                     if value in v_star:
 #                         results.append(self.mrm(relation_dict, relation_dict_reversed, v_star,
 #                                                 seed_pair=(key, value), k=40))
-#                         tqdm_progress.set_description(f'{key}: [{results[-1]:.5f}, {sum(results) / len(results):.5f}, '
-#                                                       f'{max(results):.5f}]')
+#                         tqdm_progress.set_description(f'{key}: [{results[-1]:.5f}, {sum(results) / len(results):.5f},'
+#                                                       f' {max(results):.5f}]')
 #                         tqdm_progress.update()
 #
 #         return sum(results) / len(results), max(results)
@@ -653,7 +655,7 @@ class HumanAssessment(Benchmark):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
                  srs_evaluator: SRSEvaluator,
-                 use_spearman: bool=True):
+                 use_spearman: bool = True):
         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
         self.srs_evaluator = srs_evaluator
         self.use_spearman = use_spearman

@@ -135,7 +135,8 @@ def main():
         # Related Work
         Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/claims_cuis_hs_300.txt'), "Claims", "word2vec", "UNK"),
         Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/DeVine_etal_200.txt'), "DeVine et al.", "word2vec", "UNK"),
-        Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/stanford_umls_svd_300.txt'), "Stanford", "word2vec", "UNK"),
+        Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/stanford_umls_svd_300.txt'),
+                  "Stanford", "word2vec", "UNK"),
         Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/cui2vec_pretrained.txt'), "cui2vec", "word2vec", "UNK"),
         Embedding(Embeddings.load(path="data/German_Medical.kv"), "GerVec", "word2vec", "multi-term")
 
@@ -187,8 +188,9 @@ def main():
         #           "Glove", "single-term"),
         # Embedding(Embeddings.load(path="data/German_Medical_Glove_JULIE_all.kv"), "GerVec",
         #           "Glove", "JULIE"),
-        # Embedding(assign_concepts_to_vecs(Embeddings.load(path="data/German_Medical_Glove_no_cui_all.kv"), umls_mapper),
-        #           "GerVec", "Glove", "SE CUI")
+        # Embedding(assign_concepts_to_vecs(
+        #     Embeddings.load(path="data/German_Medical_Glove_no_cui_all.kv"), umls_mapper),
+        #     "GerVec", "Glove", "SE CUI")
     ]
 
     # fasttext_model = load_fasttext_model('E://cc.de.300.bin')

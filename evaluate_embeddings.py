@@ -44,15 +44,23 @@ class Evaluation:
         for benchmark in self.benchmarks:
             print(benchmark.__class__.__name__, benchmark.dataset, benchmark.algorithm)
             score = benchmark.evaluate()
-            nr_concepts = len(set(benchmark.umls_mapper.umls_reverse_dict.keys()).intersection(set(benchmark.vocab)))
-            nr_vectors = len(benchmark.vocab)
-            actual_umls_terms = set(benchmark.umls_mapper.umls_reverse_dict.keys()).intersection(set(benchmark.vocab.keys()))
-            umls_cov = len(actual_umls_terms) / len(benchmark.umls_mapper.umls_dict.keys())
-            tuples.append((benchmark.dataset, benchmark.algorithm, benchmark.preprocessing, score, nr_concepts, nr_vectors, umls_cov, benchmark.__class__.__name__, ))
+            german_cuis = set(benchmark.umls_mapper.umls_reverse_dict.keys())
+            vocab_terms = set(benchmark.vocab.keys())
+            actual_umls_terms = german_cuis.intersection(vocab_terms)
+            nr_german_cuis = len(german_cuis)
+            nr_vectors = len(vocab_terms)
+            nr_concepts = len(actual_umls_terms)
+
+            cui_cov = nr_concepts / nr_vectors   # ratio of found umls terms vs all vocab entries
+            umls_cov = nr_concepts / nr_german_cuis  # ratio of found umls terms vs total UMLS terms
+            # umls_cov = nr_concepts / len(benchmark.umls_mapper.umls_dict.keys())
+
+            tuples.append((benchmark.dataset, benchmark.algorithm, benchmark.preprocessing, score,
+                           nr_concepts, nr_vectors, cui_cov, umls_cov, benchmark.__class__.__name__, ))
 
         df = pd.DataFrame(tuples, columns=['Data set', 'Algorithm', 'Preprocessing', 'Score', '# Concepts',
-                                           '# Words', 'UMLS Coverage', 'Benchmark'])
-        df["CUI Coverage"] = (df["# Concepts"] / df["# Words"])
+                                           '# Words', 'CUI Coverage', 'UMLS Coverage', 'Benchmark'])
+        # df["CUI Coverage"] = (df["# Concepts"] / df["# Words"])
         print(df)
         df.to_csv('data/benchmark_results1.csv', index=False, encoding="utf-8")
         used_benchmarks_dict = defaultdict(list)
@@ -121,12 +129,16 @@ def main():
     # multi-term: sensible for multi token concepts
     # single-term: unsensible for multi token concepts
     # JULIE: JULIE repelacement of concepts
-    # SE CUI: Subsequenti Estimated CUIs with own method
+    # SE CUI: Subsequent Estimated CUIs with own method
     embeddings_to_benchmark = [
+
         # Related Work
         Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/claims_cuis_hs_300.txt'), "Claims", "word2vec", "UNK"),
-        Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/DeVine_etal_200.txt'), "DeVine et al", "word2vec", "UNK"),
+        Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/DeVine_etal_200.txt'), "DeVine et al.", "word2vec", "UNK"),
         Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/stanford_umls_svd_300.txt'), "Stanford", "word2vec", "UNK"),
+        Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/cui2vec_pretrained.txt'), "cui2vec", "word2vec", "UNK"),
+        Embedding(Embeddings.load(path="data/German_Medical.kv"), "GerVec", "word2vec", "multi-term")
+
         # GGPONC
         # Embedding(Embeddings.load(path="data/no_prep_vecs_test_all.kv"), "GGPONC", "word2vec", "multi-term"),
         # Embedding(Embeddings.load(path="data/GGPONC_plain_all.kv"), "GGPONC", "word2vec", "single-term"),
@@ -139,6 +151,7 @@ def main():
         # # https://devmount.github.io/GermanWordEmbeddings/
         # Embedding(assign_concepts_to_vecs(Embeddings.load_w2v_format('E:/german.model', binary=True),
         #                                   umls_mapper), "Wikipedia + News 2015", "word2vec", "SE CUI"),
+
         # # News
         # Embedding(Embeddings.load(path="data/60K_news_all.kv"), "News 60K", "word2vec", "multi-term"),
         # Embedding(Embeddings.load(path="data/60K_news_plain_all.kv"), "News 60K", "word2vec", "single-term"),
@@ -149,10 +162,13 @@ def main():
         # Embedding(Embeddings.load(path="data/60K_news_glove_all.kv"), "News 60K", "Glove", "multi-term"),
         # Embedding(Embeddings.load(path="data/500K_news_all.kv"), "News 500K", "word2vec", "multi-term"),
         # # Embedding(Embeddings.load(path="data/3M_news_all.kv"), "News 3M", "word2vec", "multi-term"),
+
         # # JSynCC
         # Embedding(Embeddings.load(path="data/JSynCC_all.kv"), "JSynCC", "word2vec", "multi-term"),
+
         # # PubMed
         # Embedding(Embeddings.load(path="data/PubMed_all.kv"), "PubMed", "word2vec", "multi-term"),
+
         # # German Medical Concatenation
         # Embedding(Embeddings.load(path="data/German_Medical_all.kv"), "GerVec", "word2vec", "multi-term"),
         # Embedding(Embeddings.load(path="data/German_Medical_plain_all.kv"), "GerVec", "word2vec", "single-term"),

@@ -167,9 +167,9 @@ def main():
     #                   embedding_name="GGPONC_fastText",
     #                   embeddings_algorithm="fastText")
     # #fixme check: still nan error?
-    sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
-                      embedding_name="GGPONC_glove",
-                      embeddings_algorithm="Glove")
+    # sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
+    #                   embedding_name="GGPONC_glove",
+    #                   embeddings_algorithm="Glove")
     # sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences_JULIE.txt",
     #                   embedding_name="GGPONC_JULIE",
     #                   embeddings_algorithm="word2vec",
@@ -209,6 +209,7 @@ def main():
     # sentence_data2vec(path=paths,
     #                   embedding_name="German_Medical",
     #                   embeddings_algorithm="word2vec",
+    #                   restrict_vectors=True,
     #                   umls_replacement=True,
     #                   use_multiterm_replacement=True
     #                   )

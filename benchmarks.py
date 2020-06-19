@@ -10,7 +10,7 @@ import numpy as np
 from gensim import matutils
 # from gensim.models.wrappers import FastText
 from gensim.models.fasttext import load_facebook_model
-from scipy.stats import mannwhitneyu
+from scipy.stats import mannwhitneyu, ttest_ind
 from scipy.stats.mstats import spearmanr
 from tqdm import tqdm
 
@@ -69,13 +69,15 @@ class Benchmark(ABC):
         if vector1 is not None and vector2 is not None:
             cos = self.vectors.cosine_similarities(vector1, np.array([vector2]))[0]
 
+        if np.isnan(cos):
+            cos = 0
         if cos:
             cos = -cos if cos < 0 else cos
         return cos
 
     def similarity_matrix(self, vectors: List[np.ndarray]) -> np.ndarray:
         matrix = []
-        for vector_1 in vectors:
+        for vector_1 in tqdm(vectors, total=len(vectors)):
             row = []
             for vector_2 in vectors:
                 row.append(self.cosine(vector1=vector_1, vector2=vector_2))
@@ -83,10 +85,14 @@ class Benchmark(ABC):
         return np.array(matrix)
 
     @staticmethod
-    def n_similarity(v1: List[np.ndarray], v2: List[np.ndarray]) -> np.ndarray:
+    def n_similarity(v1: Union[List[np.ndarray], np.ndarray], v2: Union[List[np.ndarray], np.ndarray]) -> np.ndarray:
+        if isinstance(v1, list):
+            v1 = np.array(v1)
+        if isinstance(v2, list):
+            v2 = np.array(v2)
         if not (len(v1) and len(v2)):
             raise ZeroDivisionError('At least one of the passed lists is empty.')
-        return np.dot(matutils.unitvec(np.array(v1).mean(axis=0)), matutils.unitvec(np.array(v2).mean(axis=0)))
+        return np.dot(matutils.unitvec(v1.mean(axis=0)), matutils.unitvec(v2.mean(axis=0)))
 
     def avg_embedding(self) -> np.ndarray:
         # def nan_checker(inp):
@@ -728,6 +734,20 @@ class SemanticTypeBeam(Benchmark):
     @staticmethod
     def bootstrap_samples(same_category_terms, different_category_terms, bootstraps: int = 10000, eps: float = 1e-6) \
             -> np.ndarray:
+        def pmax_old(l1, l2):
+            if isinstance(l2, float):
+                l2 = np.full(len(l1), l2)
+            resulting_list = [max(*op_list) for op_list in zip(l1, l2)]
+            if isinstance(l1, np.ndarray) and isinstance(l2, np.ndarray):
+                return np.array(resulting_list)
+            return resulting_list
+
+        def pmax(m1, m2):
+            m2 = np.full(len(m1[0]), m2)
+            resulting_arr = []
+            for entry in m1:
+                resulting_arr.append(np.array([max(*op_list) for op_list in zip(entry, m2)]))
+            return np.array(resulting_arr)
         # a = 1:nrow(query_db)
 
         x_matrix = np.random.choice(list(same_category_terms.keys()), size=bootstraps, replace=True, p=None)
@@ -741,20 +761,27 @@ class SemanticTypeBeam(Benchmark):
         # results_rows = sample(x=1:nrow(results_db),size=bootstraps,replace=TRUE)
         # X = query_db[query_rows,]
         # Y = results_db[results_rows,]
-        print(x_matrix.shape, y_matrix.shape)
+
         # prevent division by zero by assigning at least eps of value
-        t1 = np.maximum(np.sqrt(np.cross(x_matrix, x_matrix, axisa=0, axisb=0)), eps)
-        t2 = np.maximum(np.sqrt(np.cross(x_matrix, x_matrix, axisa=0, axisb=0)), eps)
+        # print(x_matrix[0])
+        # print('X', x_matrix.shape)
+        # print(y_matrix.shape)
+
+        t1 = pmax(np.sqrt(x_matrix*x_matrix), eps)
+        t2 = pmax(np.sqrt(y_matrix*y_matrix), eps)
+        # print('pmax', t1.shape)
 
         # t1 = pmax(sqrt(apply(X, 1, crossprod)),eps)
         # t2 = pmax(sqrt(apply(Y, 1, crossprod)),eps)
 
+        # ValueError: operands could not be broadcast together with shapes (10000,500) (10000,10000)
         x_matrix = x_matrix / t1
         y_matrix = y_matrix / t2
-
+        print(x_matrix.shape, y_matrix.shape)
         # bootstrap_scores = rowSums(X * Y)
         bootstrap_scores = np.sum(x_matrix * y_matrix, axis=0)
-        print(bootstrap_scores)
+        print(bootstrap_scores.shape)
+        # print(bootstrap_scores)
         return bootstrap_scores
 
     def real_beam(self):
@@ -765,25 +792,31 @@ class SemanticTypeBeam(Benchmark):
             concepts_of_semantic_type = list(self.umls_evaluator.category2concepts[semantic_type])
             concepts_not_of_semantic_type = list(all_concepts.difference(concepts_of_semantic_type))
             # sim_scores = self.vectors.n_similarity(concepts_of_semantic_type, concepts_of_semantic_type)
-            semantic_type_vectors = {concept: self.get_concept_vector(concept) for concept in concepts_of_semantic_type}
-            not_semantic_type_vectors = {concept: self.get_concept_vector(concept) for concept in
+            semantic_type_keyed_vectors = {concept: self.get_concept_vector(concept) for concept in concepts_of_semantic_type}
+            not_semantic_type_keyed_vectors = {concept: self.get_concept_vector(concept) for concept in
                                          concepts_not_of_semantic_type}
 
-            semantic_type_vectors = {concept: vector for concept, vector in semantic_type_vectors.items() if
+            semantic_type_keyed_vectors = {concept: vector for concept, vector in semantic_type_keyed_vectors.items() if
                                      vector is not None}
-            not_semantic_type_vectors = {concept: vector for concept, vector in not_semantic_type_vectors.items() if
+            not_semantic_type_keyed_vectors = {concept: vector for concept, vector in not_semantic_type_keyed_vectors.items() if
                                          vector is not None}
 
-            # sim_scores = self.n_similarity(semantic_type_vectors, not_semantic_type_vectors)
-            sim_scores = self.similarity_matrix(list(semantic_type_vectors.values()))
+            null_scores = self.bootstrap_samples(semantic_type_keyed_vectors, not_semantic_type_keyed_vectors)
+            print('null_Scores shape', null_scores.shape)
+            sig_threshold = np.quantile(null_scores, q=1 - constant.SIG_LEVEL)
+            print(sig_threshold)
+
+            semantic_type_vecs = np.array([vector for concept_key, vector in semantic_type_keyed_vectors.items()])
+            print(semantic_type_vecs.shape)
+            sim_scores = self.n_similarity(semantic_type_vecs, semantic_type_vecs)
+            # sim_scores = self.similarity_matrix(list(semantic_type_keyed_vectors.values()))
             print(sim_scores.shape)
+            print(sim_scores)
             observed_scores = np.triu(sim_scores)
 
             print(observed_scores)
 
-            null_scores = self.bootstrap_samples(semantic_type_vectors, not_semantic_type_vectors)
 
-            sig_threshold = np.quantile(null_scores, p=1 - constant.SIG_LEVEL)
 
             num_positives = len(
                 [observed_scores for observed_score in observed_scores if observed_score > sig_threshold])
@@ -844,7 +877,109 @@ class SemanticTypeBeam(Benchmark):
         power = semantic_sum / (semantic_sum + not_semantic_sum)
         return power
 
+    def improved_own_beam(self, sample_size=10000):
+        def sample(elements: List[Tuple[str, str]], bootstraps: int = 10):
+            random.seed(42)
+            sampled = random.sample(elements, bootstraps)
+            # sampled = np.random.choice(elements, size=bootstraps, replace=True, p=None)
+            return sampled
+
+        def sample2(elements: List[Tuple[str, str]], other_elements: List[Tuple[str, str]], bootstraps: int = 10):
+            random.seed(42)
+            sampled = random.sample(elements, bootstraps)
+            # sampled = np.random.choice(elements, size=bootstraps, replace=True, p=None)
+            return sampled
+
+        def get_relations(concepts):
+            relations = []
+            for i, c1 in enumerate(concepts):
+                for j, c2 in enumerate(concepts):
+                    if j <= i:
+                        continue
+                    relations.append((c1, c2))
+
+            return relations
+
+        def pmax(l1, l2):
+            if isinstance(l2, float):
+                l2 = np.full(len(l1), l2)
+            resulting_list = [max(*op_list) for op_list in zip(l1, l2)]
+            if isinstance(l1, np.ndarray) and isinstance(l2, np.ndarray):
+                return np.array(resulting_list)
+            return resulting_list
+
+        def get_cosine_values_of_relations(tuple_list: List[Tuple[str, str]]) -> List[float]:
+            return [self.cosine(vector1=self.get_concept_vector(rel[0]),
+                                vector2=self.get_concept_vector(rel[1]))
+                    for rel in tuple_list]
+
+        def null_distribution(rels, other_rels, eps=0.0000001):
+            cosine_values_sample = np.array(get_cosine_values_of_relations(rels))
+            other_cosine_values_sample = np.array(get_cosine_values_of_relations(other_rels))
+            print('means', np.mean(cosine_values_sample), np.mean(other_cosine_values_sample))
+            t1 = pmax(np.sqrt(cosine_values_sample * cosine_values_sample), eps)
+            t2 = pmax(np.sqrt(other_cosine_values_sample * other_cosine_values_sample), eps)
+            print(t1, t2)
+            x = cosine_values_sample/t1
+            y = other_cosine_values_sample/t2
+            print(x)
+            print(y)
+            bootstrap_scores = np.sum(x * y, axis=0)
+            print('bs', bootstrap_scores)
+            t_score, p_value = ttest_ind(cosine_values_sample, other_cosine_values_sample, equal_var=False)
+            print(t_score, p_value)
+            # fixme: real null distribution, use other concepts
+            return cosine_values_sample
+
+        total_positives = 0
+        total_observed_scores = 0
+        # categories = self.umls_evaluator.category2concepts.keys()
+        categories = ['Pharmacologic Substance',
+                      'Disease or Syndrome',
+                      'Neoplastic Process',
+                      'Clinical Drug',
+                      'Finding',
+                      'Injury or Poisoning',
+                      ]
+
+        all_concepts = set(self.umls_evaluator.concept2category.keys())
+        for category in tqdm(categories, total=len(categories)):
+
+            category_concepts = list(self.umls_evaluator.category2concepts[category])[:1000]
+
+            other_concepts = list(all_concepts.difference(category_concepts))[:1000]
+            # print(len(category_concepts))
+            # relations = {concepts in category}X{concepts in category}
+            # fixme: outpfmemory
+            relations = get_relations(category_concepts)
+            # sample  two concepts c1, c2 of category
+            sampled_relations = sample(relations, sample_size)
+            sampled_other_relations = sample(get_relations(other_concepts), sample_size)
+
+            # print(cosine_values_sample)
+            sig_threshold = np.quantile(null_distribution(sampled_relations, sampled_other_relations),
+                                        1-constant.SIG_LEVEL)
+            # print(sig_threshold)
+            num_observed_scores = 0
+            num_positives = 0
+
+            for relation in relations:
+                observed_score = self.cosine(vector1=self.get_concept_vector(relation[0]),
+                                             vector2=self.get_concept_vector(relation[1]))
+
+                if observed_score >= sig_threshold:
+                    num_positives += 1
+                num_observed_scores += 1
+
+            total_positives += num_positives
+            total_observed_scores += num_observed_scores
+            # category_power = num_positives / num_observed_scores
+            # print(category_power)
+
+        power = total_positives / total_observed_scores
+        return power
+
     def evaluate(self) -> float:
-        # power = self.real_beam()
-        power = self.own_beam()
+        power = self.improved_own_beam()
+        # power = self.own_beam()
         return power

@@ -138,7 +138,7 @@ def main():
         Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/stanford_umls_svd_300.txt'),
                   "Stanford", "word2vec", "UNK"),
         Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/cui2vec_pretrained.txt'), "cui2vec", "word2vec", "UNK"),
-        Embedding(Embeddings.load(path="data/German_Medical.kv"), "GerVec", "word2vec", "multi-term")
+        # Embedding(Embeddings.load(path="data/German_Medical.kv"), "GerVec", "word2vec", "multi-term")
 
         # GGPONC
         # Embedding(Embeddings.load(path="data/no_prep_vecs_test_all.kv"), "GGPONC", "word2vec", "multi-term"),
@@ -205,9 +205,9 @@ def main():
     benchmarks_to_use = [
         HumanAssessment,
         # CategoryBenchmark,
-        # SemanticTypeBeam,
+        SemanticTypeBeam,
         # SilhouetteCoefficient,
-        ChoiConceptualSimilarity,
+        # ChoiConceptualSimilarity,
         # ChoiMedicalRelatednessMayTreat,
         # ChoiMedicalRelatednessMayPrevent
     ]

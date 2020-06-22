@@ -22,6 +22,8 @@ class Evaluation:
                 self.benchmarks.append(CategoryBenchmark(embedding, umls_mapper, umls_evaluator))
             if SemanticTypeBeam in benchmark_classes:
                 self.benchmarks.append(SemanticTypeBeam(embedding, umls_mapper, umls_evaluator))
+            if SemanticTypeBeamBenchmark in benchmark_classes:
+                self.benchmarks.append(SemanticTypeBeamBenchmark(embedding, umls_mapper, umls_evaluator))
             if SilhouetteCoefficient in benchmark_classes:
                 self.benchmarks.append(SilhouetteCoefficient(embedding, umls_mapper, umls_evaluator))
             if ChoiConceptualSimilarity in benchmark_classes:
@@ -135,10 +137,10 @@ def main():
         # Related Work
         Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/claims_cuis_hs_300.txt'), "Claims", "word2vec", "UNK"),
         Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/DeVine_etal_200.txt'), "DeVine et al.", "word2vec", "UNK"),
-        Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/stanford_umls_svd_300.txt'),
-                  "Stanford", "word2vec", "UNK"),
-        Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/cui2vec_pretrained.txt'), "cui2vec", "word2vec", "UNK"),
-        # Embedding(Embeddings.load(path="data/German_Medical.kv"), "GerVec", "word2vec", "multi-term")
+        # Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/stanford_umls_svd_300.txt'),
+        #           "Stanford", "word2vec", "UNK"),
+        # Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/cui2vec_pretrained.txt'), "cui2vec", "word2vec", "UNK"),
+        Embedding(Embeddings.load(path="data/German_Medical.kv"), "GerVec", "word2vec", "multi-term")
 
         # GGPONC
         # Embedding(Embeddings.load(path="data/no_prep_vecs_test_all.kv"), "GGPONC", "word2vec", "multi-term"),
@@ -206,6 +208,7 @@ def main():
         HumanAssessment,
         # CategoryBenchmark,
         SemanticTypeBeam,
+        SemanticTypeBeamBenchmark,
         # SilhouetteCoefficient,
         # ChoiConceptualSimilarity,
         # ChoiMedicalRelatednessMayTreat,

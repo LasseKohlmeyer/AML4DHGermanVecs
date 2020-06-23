@@ -20,8 +20,6 @@ class Evaluation:
         for embedding in embeddings:
             if CategoryBenchmark in benchmark_classes:
                 self.benchmarks.append(CategoryBenchmark(embedding, umls_mapper, umls_evaluator))
-            if SemanticTypeBeam in benchmark_classes:
-                self.benchmarks.append(SemanticTypeBeam(embedding, umls_mapper, umls_evaluator))
             if SemanticTypeBeamBenchmark in benchmark_classes:
                 self.benchmarks.append(SemanticTypeBeamBenchmark(embedding, umls_mapper, umls_evaluator))
             if NDFRTBeamBenchmark in benchmark_classes:
@@ -210,7 +208,6 @@ def main():
         # HumanAssessment,
         # CategoryBenchmark,
         # NDFRTBeamBenchmark,
-        SemanticTypeBeam,
         SemanticTypeBeamBenchmark,
         # SilhouetteCoefficient,
         # ConceptualSimilarityChoi,

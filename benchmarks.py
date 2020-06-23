@@ -759,7 +759,7 @@ class AbstractBeamBenchmark(Benchmark, ABC):
         return self.calculate_power()
 
 
-class SemanticTypeBeamBenchmark(AbstractBeamBenchmark):
+class SemanticTypeBeam(AbstractBeamBenchmark):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
                  umls_evaluator: UMLSEvaluator):
@@ -809,7 +809,7 @@ class SemanticTypeBeamBenchmark(AbstractBeamBenchmark):
         return total_positives / total_observed_scores
 
 
-class NDFRTBeamBenchmark(AbstractBeamBenchmark):
+class NDFRTBeam(AbstractBeamBenchmark):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
                  umls_evaluator: UMLSEvaluator,

@@ -363,7 +363,7 @@ class Relation(Enum):
     MAY_PREVENT = "may_prevent"
 
 
-class ChoiConceptualSimilarity(Benchmark):
+class ConceptualSimilarityChoi(Benchmark):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
                  umls_evaluator: UMLSEvaluator,
@@ -423,7 +423,7 @@ class ChoiConceptualSimilarity(Benchmark):
         return sigma / len(v_t)
 
 
-class ChoiMedicalRelatedness(Benchmark):
+class MedicalRelatednessChoi(Benchmark, ABC):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
                  umls_evaluator: UMLSEvaluator,
@@ -512,7 +512,7 @@ class ChoiMedicalRelatedness(Benchmark):
         return sum(results) / len(results), max(results)
 
 
-class ChoiMedicalRelatednessMayTreat(ChoiMedicalRelatedness):
+class MedicalRelatednessMayTreatChoi(MedicalRelatednessChoi):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
                  umls_evaluator: UMLSEvaluator,
@@ -522,7 +522,7 @@ class ChoiMedicalRelatednessMayTreat(ChoiMedicalRelatedness):
                          relation=Relation.MAY_TREAT)
 
 
-class ChoiMedicalRelatednessMayPrevent(ChoiMedicalRelatedness):
+class MedicalRelatednessMayPreventChoi(MedicalRelatednessChoi):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
                  umls_evaluator: UMLSEvaluator,
@@ -1064,7 +1064,7 @@ class AbstractBeamBenchmark(Benchmark, ABC):
         random.seed(42)
         return random.sample(elements, bootstraps)
 
-    def bootstrap(self, category_concepts: List[str], other_concepts: List[str], sample_size: int):
+    def bootstrap(self, category_concepts: List[str], other_concepts: List[str], sample_size: int = 10000):
 
         concept_sample = self.sample(category_concepts, sample_size)
         other_sample = self.sample(other_concepts, sample_size)
@@ -1076,27 +1076,6 @@ class AbstractBeamBenchmark(Benchmark, ABC):
         threshold = np.quantile(bootstrap_values, 1 - constant.SIG_LEVEL)
 
         return threshold
-
-    def positive_observations(self, same_type_concepts, other_type_concepts, sample_size: int = 10000,
-                              number_comparisons: int = 100):
-        sig_threshold = self.bootstrap(same_type_concepts, other_type_concepts, sample_size=sample_size)
-        num_observed_scores = 0
-        num_positives = 0
-        sampled_same_type_concepts = self.sample(same_type_concepts, number_comparisons)
-        for i, first_category_concept in enumerate(sampled_same_type_concepts):
-            for j, second_category_concept in enumerate(sampled_same_type_concepts):
-                if j <= i:
-                    continue
-                observed_score = self.cosine(vector1=self.get_concept_vector(first_category_concept),
-                                             vector2=self.get_concept_vector(second_category_concept))
-
-                if observed_score >= sig_threshold:
-                    num_positives += 1
-                num_observed_scores += 1
-
-        # total_positives += num_positives
-        # total_observed_scores += num_observed_scores
-        return num_positives, num_observed_scores
 
     @abstractmethod
     def calculate_power(self):
@@ -1128,7 +1107,6 @@ class SemanticTypeBeamBenchmark(AbstractBeamBenchmark):
                             if concept in self.vocab])
         tqdm_bar = tqdm(categories, total=len(categories))
         for category in tqdm_bar:
-
             same_type_concepts = [concept for concept in self.umls_evaluator.category2concepts[category]
                                   if concept in self.vocab]
             other_type_concepts = list(all_concepts.difference(same_type_concepts))
@@ -1136,10 +1114,90 @@ class SemanticTypeBeamBenchmark(AbstractBeamBenchmark):
             if len(same_type_concepts) == 0 or len(other_type_concepts) == 0:
                 continue
 
-            num_positives, num_observations = self.positive_observations(same_type_concepts, other_type_concepts)
+            sig_threshold = self.bootstrap(same_type_concepts, other_type_concepts, sample_size=10000)
+            num_observed_scores = 0
+            num_positives = 0
+            sampled_same_type_concepts = self.sample(same_type_concepts, 100)
+            for i, first_category_concept in enumerate(sampled_same_type_concepts):
+                for j, second_category_concept in enumerate(sampled_same_type_concepts):
+                    if j <= i:
+                        continue
+                    observed_score = self.cosine(vector1=self.get_concept_vector(first_category_concept),
+                                                 vector2=self.get_concept_vector(second_category_concept))
+
+                    if observed_score >= sig_threshold:
+                        num_positives += 1
+                    num_observed_scores += 1
 
             total_positives += num_positives
-            total_observed_scores += num_observations
+            total_observed_scores += num_observed_scores
+
+        return total_positives / total_observed_scores
+
+
+class NDFRTBeamBenchmark(AbstractBeamBenchmark):
+    def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
+                 umls_mapper: UMLSMapper,
+                 umls_evaluator: UMLSEvaluator,
+                 ndf_evaluator: NDFEvaluator):
+        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)
+        self.ndf_evaluator = ndf_evaluator
+
+    def get_concepts_of_semantic_types(self, semantic_types):
+        concepts = set()
+        for semantic_type in semantic_types:
+            concepts.update([concept
+                             for concept in self.umls_evaluator.category2concepts[semantic_type]
+                             if concept in self.vocab])
+        return list(concepts)
+
+    def calculate_power(self):
+        total_positives = 0
+        total_observed_scores = 0
+        treatment_conditions = []
+        for treatment, conditions in self.ndf_evaluator.may_prevent.items():
+            for condition in conditions:
+                if treatment in self.vocab and condition in self.vocab:
+                    treatment_conditions.append((treatment, condition))
+                else:
+                    total_observed_scores += 1
+
+        for treatment, conditions in self.ndf_evaluator.may_treat.items():
+            for condition in conditions:
+                if treatment in self.vocab and condition in self.vocab:
+                    treatment_conditions.append((treatment, condition))
+                else:
+                    total_observed_scores += 1
+
+        tqdm_bar = tqdm(treatment_conditions, total=len(treatment_conditions))
+        for treatment_condition in tqdm_bar:
+            current_treatment, current_condition = treatment_condition
+            if current_treatment in self.umls_evaluator.concept2category.keys() \
+                    and current_condition in self.umls_evaluator.concept2category.keys():
+                treatment_semantic_types = self.umls_evaluator.concept2category[current_treatment]
+                condition_semantic_types = self.umls_evaluator.concept2category[current_condition]
+            else:
+                continue
+
+            treatment_concepts = self.get_concepts_of_semantic_types(treatment_semantic_types)
+            condition_concepts = self.get_concepts_of_semantic_types(condition_semantic_types)
+
+            if len(treatment_concepts) == 0 or len(condition_concepts) == 0:
+                continue
+
+            sig_threshold = self.bootstrap(treatment_concepts, condition_concepts, sample_size=10000)
+
+            num_observed_scores = 0
+            num_positives = 0
+
+            observed_score = self.cosine(vector1=self.get_concept_vector(current_treatment),
+                                         vector2=self.get_concept_vector(current_condition))
+            if observed_score >= sig_threshold:
+                num_positives += 1
+            num_observed_scores += 1
+
+            total_positives += num_positives
+            total_observed_scores += num_observed_scores
 
         return total_positives / total_observed_scores
 

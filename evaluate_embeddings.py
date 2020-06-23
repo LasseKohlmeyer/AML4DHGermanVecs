@@ -24,19 +24,21 @@ class Evaluation:
                 self.benchmarks.append(SemanticTypeBeam(embedding, umls_mapper, umls_evaluator))
             if SemanticTypeBeamBenchmark in benchmark_classes:
                 self.benchmarks.append(SemanticTypeBeamBenchmark(embedding, umls_mapper, umls_evaluator))
+            if NDFRTBeamBenchmark in benchmark_classes:
+                self.benchmarks.append(NDFRTBeamBenchmark(embedding, umls_mapper, umls_evaluator, ndf_evaluator))
             if SilhouetteCoefficient in benchmark_classes:
                 self.benchmarks.append(SilhouetteCoefficient(embedding, umls_mapper, umls_evaluator))
-            if ChoiConceptualSimilarity in benchmark_classes:
+            if ConceptualSimilarityChoi in benchmark_classes:
                 self.benchmarks.append(
-                    ChoiConceptualSimilarity(embedding, umls_mapper, umls_evaluator, ndf_evaluator))
+                    ConceptualSimilarityChoi(embedding, umls_mapper, umls_evaluator, ndf_evaluator))
             # if ChoiMedicalRelatedness in benchmark_classes:
             #     self.benchmarks.append(ChoiMedicalRelatedness(embedding, umls_mapper, umls_evaluator, ndf_evaluator,
             #                                                   Relation.MAY_TREAT))
-            if ChoiMedicalRelatednessMayTreat in benchmark_classes:
-                self.benchmarks.append(ChoiMedicalRelatednessMayTreat(embedding, umls_mapper, umls_evaluator,
+            if MedicalRelatednessMayTreatChoi in benchmark_classes:
+                self.benchmarks.append(MedicalRelatednessMayTreatChoi(embedding, umls_mapper, umls_evaluator,
                                                                       ndf_evaluator))
-            if ChoiMedicalRelatednessMayPrevent in benchmark_classes:
-                self.benchmarks.append(ChoiMedicalRelatednessMayPrevent(embedding, umls_mapper, umls_evaluator,
+            if MedicalRelatednessMayPreventChoi in benchmark_classes:
+                self.benchmarks.append(MedicalRelatednessMayPreventChoi(embedding, umls_mapper, umls_evaluator,
                                                                         ndf_evaluator))
             if HumanAssessment in benchmark_classes:
                 self.benchmarks.append(HumanAssessment(embedding, umls_mapper, srs_evaluator))
@@ -205,14 +207,15 @@ def main():
     srs_evaluator = SRSEvaluator(from_dir="E:/AML4DH-DATA/SRS")
 
     benchmarks_to_use = [
-        HumanAssessment,
+        # HumanAssessment,
         # CategoryBenchmark,
+        # NDFRTBeamBenchmark,
         SemanticTypeBeam,
         SemanticTypeBeamBenchmark,
         # SilhouetteCoefficient,
-        # ChoiConceptualSimilarity,
-        # ChoiMedicalRelatednessMayTreat,
-        # ChoiMedicalRelatednessMayPrevent
+        # ConceptualSimilarityChoi,
+        # MedicalRelatednessMayTreatChoi,
+        # MedicalRelatednessMayPreventChoi
     ]
 
     evaluation = Evaluation(embeddings_to_benchmark,

@@ -1,6 +1,5 @@
 # from gensim.models.wrappers import FastText
 from gensim.models.fasttext import load_facebook_model
-
 from benchmarks import *
 from embeddings import Embeddings
 from evaluation_resource import NDFEvaluator, SRSEvaluator
@@ -29,9 +28,6 @@ class Evaluation:
             if ConceptualSimilarityChoi in benchmark_classes:
                 self.benchmarks.append(
                     ConceptualSimilarityChoi(embedding, umls_mapper, umls_evaluator, ndf_evaluator))
-            # if ChoiMedicalRelatedness in benchmark_classes:
-            #     self.benchmarks.append(ChoiMedicalRelatedness(embedding, umls_mapper, umls_evaluator, ndf_evaluator,
-            #                                                   Relation.MAY_TREAT))
             if MedicalRelatednessMayTreatChoi in benchmark_classes:
                 self.benchmarks.append(MedicalRelatednessMayTreatChoi(embedding, umls_mapper, umls_evaluator,
                                                                       ndf_evaluator))
@@ -44,7 +40,7 @@ class Evaluation:
     def evaluate(self):
         tuples = []
         for benchmark in self.benchmarks:
-            print(benchmark.__class__.__name__, benchmark.dataset, benchmark.algorithm)
+            # print(benchmark.__class__.__name__, benchmark.dataset, benchmark.algorithm)
             score = benchmark.evaluate()
             german_cuis = set(benchmark.umls_mapper.umls_reverse_dict.keys())
             vocab_terms = set(benchmark.vocab.keys())
@@ -137,9 +133,9 @@ def main():
         # Related Work
         Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/claims_cuis_hs_300.txt'), "Claims", "word2vec", "UNK"),
         Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/DeVine_etal_200.txt'), "DeVine et al.", "word2vec", "UNK"),
-        # Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/stanford_umls_svd_300.txt'),
-        #           "Stanford", "word2vec", "UNK"),
-        # Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/cui2vec_pretrained.txt'), "cui2vec", "word2vec", "UNK"),
+        Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/stanford_umls_svd_300.txt'),
+                  "Stanford", "word2vec", "UNK"),
+        Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/cui2vec_pretrained.txt'), "cui2vec", "word2vec", "UNK"),
         Embedding(Embeddings.load(path="data/German_Medical.kv"), "GerVec", "word2vec", "multi-term")
 
         # GGPONC
@@ -205,14 +201,14 @@ def main():
     srs_evaluator = SRSEvaluator(from_dir="E:/AML4DH-DATA/SRS")
 
     benchmarks_to_use = [
-        # HumanAssessment,
+        HumanAssessment,
         # CategoryBenchmark,
-        # NDFRTBeamBenchmark,
+        NDFRTBeam,
         SemanticTypeBeam,
         # SilhouetteCoefficient,
-        # ConceptualSimilarityChoi,
-        # MedicalRelatednessMayTreatChoi,
-        # MedicalRelatednessMayPreventChoi
+        ConceptualSimilarityChoi,
+        MedicalRelatednessMayTreatChoi,
+        MedicalRelatednessMayPreventChoi
     ]
 
     evaluation = Evaluation(embeddings_to_benchmark,

@@ -1,6 +1,5 @@
 from collections import defaultdict, OrderedDict
 from typing import List, Dict
-import logging
 import gensim
 from gensim.test.utils import get_tmpfile
 from gensim.models import Phrases, Word2Vec, FastText
@@ -171,7 +170,7 @@ class Embeddings:
                           step_size: float = 0.05,
                           batch_size: int = 50,
                           x_max: int = 100) -> gensim.models.KeyedVectors:
-        logging.info("Started vectorization")
+        print("Started vectorization")
         if embedding_algorithm == Embeddings.glove_vectors:
             return Embeddings.glove_vectors(sentences=sentences,
                                             window_size=window,

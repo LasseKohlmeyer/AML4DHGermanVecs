@@ -387,10 +387,15 @@ class ConceptualSimilarityChoi(Benchmark):
                       ]
 
         results = []
-        for category in categories:
+        tqdm_bar = tqdm(categories)
+        for category in tqdm_bar:
             category_result = self.mcsm(category)
-            print(f'{self.dataset}|{self.preprocessing}|{self.algorithm} [{category}]: {category_result}')
+            # print(f'{self.dataset}|{self.preprocessing}|{self.algorithm} [{category}]: {category_result}')
             results.append(category_result)
+            tqdm_bar.set_description(f"Conceptual Similarity Choi ({self.dataset}|{self.algorithm}|"
+                                     f"{self.preprocessing}): "
+                                     f"{category_result:.4f}")
+            tqdm_bar.update()
         return sum(results)/len(results)
 
     def mcsm(self, category, k=40):
@@ -441,8 +446,7 @@ class MedicalRelatednessChoi(Benchmark, ABC):
 
     def evaluate(self):
         mean, max_value = self.run_mrm(relation=self.relation, sample=100)
-        print(f'{self.relation} - mean: {mean}, max: {max_value}')
-
+        # print(f'{self.relation} - mean: {mean}, max: {max_value}')
         return mean, max_value
 
     def mrm(self, relation_dictionary, v_star, seed_pair: Tuple[str, str] = None,
@@ -505,8 +509,9 @@ class MedicalRelatednessChoi(Benchmark, ABC):
         for seed_pair in tqdm_progress:
             results.append(self.mrm(relation_dict, v_star, seed_pair=seed_pair, k=40))
             tqdm_progress.set_description(
-                f'{seed_pair[0]}: [{results[-1]:.5f}, {sum(results) / len(results):.5f}, '
-                f'{max(results):.5f}]')
+                f'Medical Relatedness {self.relation} Choi ({self.dataset}|{self.algorithm}|{self.preprocessing}): '
+                f'{sum(results) / len(results):.5f} mean, '
+                f'{max(results):.5f} max')
             tqdm_progress.update()
 
         return sum(results) / len(results), max(results)
@@ -549,7 +554,8 @@ class HumanAssessment(Benchmark):
 
     def get_mae(self, human_assessment_dict):
         sigma = []
-        for concept, other_concepts in human_assessment_dict.items():
+        tqdm_bar = tqdm(human_assessment_dict.items())
+        for concept, other_concepts in tqdm_bar:
             concept_vec = self.get_concept_vector(concept)
             if concept_vec is not None:
                 for other_concept in other_concepts:
@@ -558,8 +564,12 @@ class HumanAssessment(Benchmark):
                         distance = abs(human_assessment_dict[concept][other_concept]
                                        - self.cosine(vector1=concept_vec, vector2=other_concept_vec))
                         sigma.append(distance)
+                        tqdm_bar.set_description(f"Human Assessment ({self.dataset}|{self.algorithm}|"
+                                                 f"{self.preprocessing}): "
+                                                 f"{sum(sigma) / len(sigma):.4f}")
+                        tqdm_bar.update()
 
-        print(f'found {len(sigma)} assessments in embeddings')
+        # print(f'found {len(sigma)} assessments in embeddings')
         return sum(sigma) / len(sigma)
 
     def get_spearman(self, human_assessment_dict):
@@ -595,14 +605,18 @@ class HumanAssessment(Benchmark):
     def evaluate(self) -> float:
         assessments = [
             HumanAssessmentTypes.SIMILARITY_CONT,
-            # HumanAssessmentTypes.RELATEDNESS,
-            # HumanAssessmentTypes.RELATEDNESS_CONT
+            HumanAssessmentTypes.RELATEDNESS,
+            HumanAssessmentTypes.RELATEDNESS_CONT
         ]
         scores = []
-        for assessment in assessments:
+        tqdm_bar = tqdm(assessments)
+        for assessment in tqdm_bar:
             score = self.human_assessments(assessment)
             scores.append(score)
-            print(f'{assessment}: {score}')
+            tqdm_bar.set_description(f"Human Assessment Beam ({self.dataset}|{self.algorithm}|{self.preprocessing}): "
+                                     f"{score:.4f}")
+            tqdm_bar.update()
+
         return sum(scores) / len(scores)
 
 
@@ -670,9 +684,10 @@ class SemanticTypeBeam(AbstractBeamBenchmark):
                 continue
 
             sig_threshold = self.bootstrap(same_type_concepts, other_type_concepts, sample_size=10000)
+
             num_observed_scores = 0
             num_positives = 0
-            sampled_same_type_concepts = self.sample(same_type_concepts, 100)
+            sampled_same_type_concepts = self.sample(same_type_concepts, 2000)
             for i, first_category_concept in enumerate(sampled_same_type_concepts):
                 for j, second_category_concept in enumerate(sampled_same_type_concepts):
                     if j <= i:
@@ -686,6 +701,10 @@ class SemanticTypeBeam(AbstractBeamBenchmark):
 
             total_positives += num_positives
             total_observed_scores += num_observed_scores
+            tqdm_bar.set_description(f"Semantic Type Beam ({self.dataset}|{self.algorithm}|{self.preprocessing}): "
+                                     f"{sig_threshold:.4f} threshold, "
+                                     f"{(total_positives / total_observed_scores):.4f} score")
+            tqdm_bar.update()
 
         return total_positives / total_observed_scores
 
@@ -753,6 +772,10 @@ class NDFRTBeam(AbstractBeamBenchmark):
 
             total_positives += num_positives
             total_observed_scores += num_observed_scores
+            tqdm_bar.set_description(f"NDFRT Beam ({self.dataset}|{self.algorithm}|{self.preprocessing}): "
+                                     f"{sig_threshold:.4f} threshold, "
+                                     f"{(total_positives / total_observed_scores):.4f} score")
+            tqdm_bar.update()
 
         return total_positives / total_observed_scores
 

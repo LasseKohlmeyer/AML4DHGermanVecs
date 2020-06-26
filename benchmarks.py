@@ -15,7 +15,7 @@ from scipy.stats.mstats import spearmanr
 from tqdm import tqdm
 
 import constant
-from UMLS import UMLSMapper, UMLSEvaluator
+from UMLS import UMLSMapper, UMLSEvaluator, MRRELEvaluator
 from evaluation_resource import NDFEvaluator, SRSEvaluator
 from joblib import Parallel, delayed
 import multiprocessing
@@ -541,6 +541,7 @@ class HumanAssessmentTypes(Enum):
     RELATEDNESS = "relatedness"
     RELATEDNESS_CONT = "relatedness_cont"
     SIMILARITY_CONT = "similarity_cont"
+    MAYOSRS = "MayoSRS"
 
 
 class HumanAssessment(Benchmark):
@@ -606,7 +607,8 @@ class HumanAssessment(Benchmark):
         assessments = [
             HumanAssessmentTypes.SIMILARITY_CONT,
             HumanAssessmentTypes.RELATEDNESS,
-            HumanAssessmentTypes.RELATEDNESS_CONT
+            HumanAssessmentTypes.RELATEDNESS_CONT,
+            HumanAssessmentTypes.MAYOSRS
         ]
         scores = []
         tqdm_bar = tqdm(assessments)
@@ -773,6 +775,70 @@ class NDFRTBeam(AbstractBeamBenchmark):
             total_positives += num_positives
             total_observed_scores += num_observed_scores
             tqdm_bar.set_description(f"NDFRT Beam ({self.dataset}|{self.algorithm}|{self.preprocessing}): "
+                                     f"{sig_threshold:.4f} threshold, "
+                                     f"{(total_positives / total_observed_scores):.4f} score")
+            tqdm_bar.update()
+
+        return total_positives / total_observed_scores
+
+
+class CausalityBeam(AbstractBeamBenchmark):
+    def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
+                 umls_mapper: UMLSMapper,
+                 umls_evaluator: UMLSEvaluator,
+                 mrrelevaluator: MRRELEvaluator):
+        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)
+        self.mrrelevaluator = mrrelevaluator
+
+    def get_concepts_of_semantic_types(self, semantic_types):
+        concepts = set()
+        for semantic_type in semantic_types:
+            concepts.update([concept
+                             for concept in self.umls_evaluator.category2concepts[semantic_type]
+                             if concept in self.vocab])
+        return list(concepts)
+
+    def calculate_power(self):
+        total_positives = 0
+        total_observed_scores = 0
+        causative_relations = []
+        for cause, effects in self.mrrelevaluator.mrrel.items():
+            for effect in effects:
+                if cause in self.vocab and effect in self.vocab:
+                    causative_relations.append((cause, effect))
+                # else:
+                #     total_observed_scores += 1
+
+        tqdm_bar = tqdm(causative_relations, total=len(causative_relations))
+        for treatment_condition in tqdm_bar:
+            current_cause, current_effect = treatment_condition
+            if current_cause in self.umls_evaluator.concept2category.keys() \
+                    and current_effect in self.umls_evaluator.concept2category.keys():
+                cause_semantic_types = self.umls_evaluator.concept2category[current_cause]
+                effect_semantic_types = self.umls_evaluator.concept2category[current_effect]
+            else:
+                continue
+
+            cause_concepts = self.get_concepts_of_semantic_types(cause_semantic_types)
+            effect_concepts = self.get_concepts_of_semantic_types(effect_semantic_types)
+
+            if len(cause_concepts) == 0 or len(effect_concepts) == 0:
+                continue
+
+            sig_threshold = self.bootstrap(cause_concepts, effect_concepts, sample_size=10000)
+
+            num_observed_scores = 0
+            num_positives = 0
+
+            observed_score = self.cosine(vector1=self.get_concept_vector(current_cause),
+                                         vector2=self.get_concept_vector(current_effect))
+            if observed_score >= sig_threshold:
+                num_positives += 1
+            num_observed_scores += 1
+
+            total_positives += num_positives
+            total_observed_scores += num_observed_scores
+            tqdm_bar.set_description(f"Causality Beam ({self.dataset}|{self.algorithm}|{self.preprocessing}): "
                                      f"{sig_threshold:.4f} threshold, "
                                      f"{(total_positives / total_observed_scores):.4f} score")
             tqdm_bar.update()

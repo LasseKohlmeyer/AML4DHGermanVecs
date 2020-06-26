@@ -13,6 +13,7 @@ class Evaluation:
                  umls_evaluator: UMLSEvaluator,
                  ndf_evaluator: NDFEvaluator,
                  srs_evaluator: SRSEvaluator,
+                 mrrele_evaluator: MRRELEvaluator,
                  benchmark_classes=List[Benchmark]):
 
         self.benchmarks = []
@@ -23,6 +24,8 @@ class Evaluation:
                 self.benchmarks.append(SemanticTypeBeam(embedding, umls_mapper, umls_evaluator))
             if NDFRTBeam in benchmark_classes:
                 self.benchmarks.append(NDFRTBeam(embedding, umls_mapper, umls_evaluator, ndf_evaluator))
+            if CausalityBeam in benchmark_classes:
+                self.benchmarks.append(CausalityBeam(embedding, umls_mapper, umls_evaluator, mrrele_evaluator))
             if SilhouetteCoefficient in benchmark_classes:
                 self.benchmarks.append(SilhouetteCoefficient(embedding, umls_mapper, umls_evaluator))
             if ConceptualSimilarityChoi in benchmark_classes:
@@ -200,19 +203,22 @@ def main():
 
     srs_evaluator = SRSEvaluator(from_dir="E:/AML4DH-DATA/SRS")
 
+    mrrele_evaluator = MRRELEvaluator(from_dir='E:/AML4DH-DATA/UMLS')
+
     benchmarks_to_use = [
         HumanAssessment,
         # CategoryBenchmark,
-        NDFRTBeam,
-        SemanticTypeBeam,
-        # SilhouetteCoefficient,
-        ConceptualSimilarityChoi,
-        MedicalRelatednessMayTreatChoi,
-        MedicalRelatednessMayPreventChoi
+        # CausalityBeam,
+        # NDFRTBeam,
+        # SemanticTypeBeam,
+        # # SilhouetteCoefficient,
+        # ConceptualSimilarityChoi,
+        # MedicalRelatednessMayTreatChoi,
+        # MedicalRelatednessMayPreventChoi
     ]
 
     evaluation = Evaluation(embeddings_to_benchmark,
-                            umls_mapper, umls_evaluator, ndf_evaluator, srs_evaluator,
+                            umls_mapper, umls_evaluator, ndf_evaluator, srs_evaluator, mrrele_evaluator,
                             benchmarks_to_use)
 
     evaluation.evaluate()

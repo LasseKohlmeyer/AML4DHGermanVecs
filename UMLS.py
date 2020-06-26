@@ -193,7 +193,7 @@ class UMLSEvaluator(EvaluationResource):
     def set_attributes(self, *args):
         self.concept2category, self.category2concepts = args
 
-    def __init__(self, from_dir: str = None, json_path: str = "umlS_eval.json"):
+    def __init__(self, from_dir: str = None, json_path: str = "umls_eval.json"):
         self.concept2category, self.category2concepts = None, None
         self.check_for_json_and_parse(from_dir=from_dir, json_path=json_path)
 
@@ -214,3 +214,37 @@ class UMLSEvaluator(EvaluationResource):
         with open(path, 'r', encoding='utf-8') as file:
             data = json.loads(file.read())
         return data["concept2category"], data["category2concepts"]
+
+
+class MRRELEvaluator(EvaluationResource):
+    def set_attributes(self, *args):
+        self.mrrel, self.mrrel_reverse = args
+
+    def __init__(self, from_dir: str = None, json_path: str = "umls_rel_eval.json"):
+        self.mrrel = None
+        self.mrrel_reverse = None
+        self.check_for_json_and_parse(from_dir=from_dir, json_path=json_path)
+
+    def load_semantics(self, directory):
+        path = os.path.join(directory, "MRREL.RRF")
+        df = pd.read_csv(path, delimiter="|", header=None)
+        df.columns = ["CUI1", "AUI1", "STYPE1", "REL", "CUI2", "AUI2", "STYPE2", "RELA", "RUI", "SRUI", "SAB", "SL",
+                      "RG", "DIR", "SUPPRESS", "CVF", "NONE"]
+        df = df.drop(columns=["AUI1", "REL", "STYPE1", "AUI2", "STYPE2", "RUI", "SRUI", "SAB", "SL",
+                              "RG", "DIR", "SUPPRESS", "CVF", "NONE"])
+
+        df = df.loc[df['RELA'].isin(['induces', 'cause_of', 'causative_agent_of'])]
+        print(df.head(100))
+
+        mrrel = defaultdict(list)
+        mrrel_reverse = defaultdict(list)
+
+        for i, row in tqdm(df.iterrows(), total=len(df), desc="Load UMLS data"):
+            mrrel[row["CUI1"]].append(row["CUI2"])
+            mrrel_reverse[row["CUI2"]].append(row["CUI1"])
+        return mrrel, mrrel_reverse
+
+    def load_from_json(self, path: str):
+        with open(path, 'r', encoding='utf-8') as file:
+            data = json.loads(file.read())
+        return data["mrrel"], data["mrrel_reverse"]

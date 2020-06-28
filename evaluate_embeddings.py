@@ -139,7 +139,11 @@ def main():
         Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/stanford_umls_svd_300.txt'),
                   "Stanford", "word2vec", "UNK"),
         Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/cui2vec_pretrained.txt'), "cui2vec", "word2vec", "UNK"),
-        Embedding(Embeddings.load(path="data/German_Medical.kv"), "GerVec", "word2vec", "multi-term")
+        Embedding(Embeddings.load(path="data/German_Medical.kv"), "GerVec", "word2vec", "multi-term"),
+
+        # Flair
+        Embedding(assign_concepts_to_vecs(Embeddings.load(path="data/Flair_all.kv"), umls_mapper),
+                  "Ger", "Flair", "Se CUI"),
 
         # GGPONC
         # Embedding(Embeddings.load(path="data/no_prep_vecs_test_all.kv"), "GGPONC", "word2vec", "multi-term"),
@@ -158,8 +162,8 @@ def main():
         # Embedding(Embeddings.load(path="data/60K_news_all.kv"), "News 60K", "word2vec", "multi-term"),
         # Embedding(Embeddings.load(path="data/60K_news_plain_all.kv"), "News 60K", "word2vec", "single-term"),
         # Embedding(Embeddings.load(path="data/60K_news_JULIE_all.kv"), "News 60K", "word2vec", "JULIE"),
-        # Embedding(assign_concepts_to_vecs(Embeddings.load(path="data/60K_news_no_cui_all.kv"), umls_mapper),
-        #           "News 60K", "word2vec", "SE CUI"),
+        Embedding(assign_concepts_to_vecs(Embeddings.load(path="data/60K_news_no_cui_all.kv"), umls_mapper),
+                  "News 60K", "word2vec", "SE CUI"),
         # Embedding(Embeddings.load(path="data/60K_news_all.kv"), "News 60K", "fastText", "multi-term"),
         # Embedding(Embeddings.load(path="data/60K_news_glove_all.kv"), "News 60K", "Glove", "multi-term"),
         # Embedding(Embeddings.load(path="data/500K_news_all.kv"), "News 500K", "word2vec", "multi-term"),

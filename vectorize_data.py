@@ -5,6 +5,7 @@ import spacy
 
 from UMLS import UMLSMapper
 from embeddings import Embeddings
+from train_flair_embeddings import flair_embedding
 from transform_data import DataHandler
 
 
@@ -69,28 +70,37 @@ def preprocess(tokens: List[str] = None, documents: List[List[str]] = None, lemm
 
 def sentence_data2vec(path: Union[str, List[str]], embedding_name: str,
                       embeddings_algorithm: Union[str, gensim.models.Word2Vec, gensim.models.FastText] = "word2vec",
-                      number_sentences: int = None,
+                      number_sentences: int = 1000,
                       use_phrases: bool = False,
                       restrict_vectors: bool = False,
                       umls_replacement: bool = True,
-                      use_multiterm_replacement: bool = True):
+                      use_multiterm_replacement: bool = True,
+                      flair_model_path: str = None,
+                      flair_corpus_path: str = None,
+                      ):
+    is_flair = False
     if isinstance(embeddings_algorithm, str) and embeddings_algorithm.lower() == "word2vec":
         embeddings_algorithm = gensim.models.Word2Vec
     if isinstance(embeddings_algorithm, str) and embeddings_algorithm.lower() == "fasttext":
         embeddings_algorithm = gensim.models.FastText
     if isinstance(embeddings_algorithm, str) and embeddings_algorithm.lower() == "glove":
         embeddings_algorithm = Embeddings.glove_vectors
+    if isinstance(embeddings_algorithm, str) and embeddings_algorithm.lower() == "flair":
+        is_flair = True
 
     umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
     if isinstance(path, list):
-        data_sentences = []
-        for p in path:
-            data_sentences.extend(DataHandler.lines_from_file(path=p))
+        data_sentences = DataHandler.concat_path_sentences(path)
+        # old:
+        # data_sentences = []
+        # for p in path:
+        #     data_sentences.extend(DataHandler.lines_from_file(path=p))
     else:
         data_sentences = DataHandler.lines_from_file(path=path)
     if number_sentences:
         data_sentences = data_sentences[:number_sentences]
     print((data_sentences[:10]))
+
 
     # cpg_words = lines_from_file(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-tokens.txt")
 
@@ -118,9 +128,14 @@ def sentence_data2vec(path: Union[str, List[str]], embedding_name: str,
     # data_sentences = preprocess(documents=data_sentences, lemmatize=True, remove_stopwords=True)
 
     # vecs = Embeddings.calculate_vectors([cpg_words], use_phrases=False)
-    vecs = Embeddings.calculate_vectors(data_sentences,
-                                        use_phrases=use_phrases,
-                                        embedding_algorithm=embeddings_algorithm)
+
+    if is_flair:
+        vecs = flair_embedding(data_sentences, flair_model_path, flair_corpus_path)
+    else:
+        vecs = Embeddings.calculate_vectors(data_sentences,
+                                            use_phrases=use_phrases,
+                                            embedding_algorithm=embeddings_algorithm)
+
     print(f'Got {len(vecs.vocab)} vectors for {len(data_sentences)} sentences')
 
     Embeddings.save_medical(vecs, embedding_name, umls_mapper, restrict=restrict_vectors)
@@ -167,9 +182,9 @@ def main():
     #                   embedding_name="GGPONC_fastText",
     #                   embeddings_algorithm="fastText")
     # #fixme check: still nan error?
-    sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
-                      embedding_name="GGPONC_glove",
-                      embeddings_algorithm="Glove")
+    # sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
+    #                   embedding_name="GGPONC_glove",
+    #                   embeddings_algorithm="Glove")
     # sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences_JULIE.txt",
     #                   embedding_name="GGPONC_JULIE",
     #                   embeddings_algorithm="word2vec",
@@ -287,6 +302,14 @@ def main():
     #                   embeddings_algorithm="Glove",
     #                   umls_replacement=False
     #                   )
+    # Flair
+    sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
+                      embedding_name="Flair",
+                      embeddings_algorithm="Flair",
+                      flair_corpus_path=None,
+                      flair_model_path='resources/taggers/language_model')
+
+
 
     # # load sentences
     # # https://www.kaggle.com/rtatman/3-million-german-sentences/data?select=deu_news_2015_3M-sentences.txt

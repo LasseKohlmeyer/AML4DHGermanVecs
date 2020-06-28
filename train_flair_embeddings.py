@@ -1,30 +1,29 @@
 import os
 import warnings
+from collections import defaultdict
 from multiprocessing.spawn import freeze_support
-from typing import List
+from typing import List, Union
+
+from tqdm import tqdm
 
 from transform_data import DataHandler
-
+import numpy as np
 warnings.simplefilter(action='ignore', category=FutureWarning)
-
-from flair.data import Dictionary, Sentence
+from embeddings import Embeddings
+from flair.data import Dictionary, Sentence, Token
 from flair.embeddings import FlairEmbeddings, TransformerWordEmbeddings
 from flair.trainers.language_model_trainer import LanguageModelTrainer, TextCorpus
 from sklearn.model_selection import train_test_split
 
 
-def build_flair_corpus(paths: List[str], root_path: str):
+def build_flair_corpus(sentences: List[str], root_path: str):
     def chunks(lst, n):
         """Yield successive n-sized chunks from lst."""
         for i in range(0, len(lst), n):
             yield lst[i:i + n]
-    sentences = []
+
     val_ratio = 0.2
     test_ratio = 0.2
-
-    print('read data')
-    for path in paths:
-        sentences.extend(DataHandler.lines_from_file(path))
 
     first_split = val_ratio + test_ratio
     second_split = test_ratio / first_split
@@ -47,8 +46,10 @@ def build_flair_corpus(paths: List[str], root_path: str):
     DataHandler.save(os.path.join(root_path, 'valid.txt'), '\n'.join(val_sentences))
     DataHandler.save(os.path.join(root_path, 'test.txt'), '\n'.join(test_sentences))
 
+    return sentences
 
-def retrain_flair(corpus_path: str, model_path: str = 'resources/taggers/language_model'):
+
+def retrain_flair(corpus_path: str, model_path: str):
     # instantiate an existing LM, such as one from the FlairEmbeddings
     language_model = FlairEmbeddings('news-forward').lm
     language_model = FlairEmbeddings('de-forward').lm
@@ -69,7 +70,7 @@ def retrain_flair(corpus_path: str, model_path: str = 'resources/taggers/languag
     # use the model trainer to fine-tune this model on your corpus
     trainer = LanguageModelTrainer(language_model, corpus)
 
-    trainer.train('resources/taggers/language_model',
+    trainer.train(model_path,
                   sequence_length=10,
                   mini_batch_size=10,
                   learning_rate=20,
@@ -78,24 +79,47 @@ def retrain_flair(corpus_path: str, model_path: str = 'resources/taggers/languag
                   checkpoint=True)
 
 
-if __name__ == '__main__':
+def flair_embedding(raw_sentences: Union[List[str], List[List[str]]],
+                    flair_model_path: str,
+                    retrain_corpus_path: str = None):
     freeze_support()
 
-    # paths_to_input_sentences = [
-    #     'E:/AML4DH-DATA/corp_test_sentences.txt'
-    # ]
-    # corpus_path = 'E:/AML4DH-DATA/test_corp'
-    #
-    # if not os.path.isdir(corpus_path):
-    #     build_flair_corpus(paths_to_input_sentences, corpus_path)
-    # retrain_flair(corpus_path)
+    if retrain_corpus_path:
+        if not os.path.isdir(retrain_corpus_path):
+            raw_sentences = build_flair_corpus(raw_sentences, retrain_corpus_path)
+        retrain_flair(retrain_corpus_path, flair_model_path)
+    embedding = FlairEmbeddings(os.path.join(flair_model_path, 'best-lm.pt'))
 
-    emb = FlairEmbeddings('resources/taggers/language_model/best-lm.pt')
-    sentence = Sentence('Das  ist grün .')
+    if any(isinstance(el, list) for el in raw_sentences):
+        use_tokenizer = False
+        raw_sentences = [' '.join(raw_sentence) for raw_sentence in raw_sentences if len(raw_sentence) > 0]
+    else:
+        use_tokenizer = True
 
-    # embed a sentence using glove.
-    emb.embed(sentence)
+    flair_sents = [Sentence(raw_sentence, use_tokenizer=use_tokenizer)
+                   for raw_sentence in tqdm(raw_sentences,
+                                            desc="Convert to flair",
+                                            total=len(raw_sentences))]
 
-    for token in sentence:
-        print(token)
-        print(token.embedding)
+    keyed_vecs = defaultdict(list)
+    for flair_sentence in tqdm(flair_sents, desc='Embed sentences', total=len(flair_sents)):
+        embedding.embed(flair_sentence)
+        for token in flair_sentence:
+            keyed_vecs[token.text].append(token.embedding)
+
+    keyed_vecs = {key: np.array(sum(vecs) / len(vecs)) for key, vecs in keyed_vecs.items()}
+
+    return Embeddings.to_gensim_binary(keyed_vecs)
+
+
+# if __name__ == '__main__':
+#     paths_to_input_sentences = [
+#         'E:/AML4DH-DATA/corp_test_sentences.txt'
+#     ]
+#     corpus_path = 'E:/AML4DH-DATA/test_corp'
+#     flair_model_path = 'resources/taggers/language_model'
+#     save_path = f"E:/AML4DHGermanVecs/data/conv_flair_all.kv"
+#     sentences = DataHandler.concat_path_sentences(paths_to_input_sentences)[:10]
+#     vecs = flair_embedding(sentences, flair_model_path, retrain_corpus_path=None)
+#
+#     Embeddings.save(vecs, path=save_path)

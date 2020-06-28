@@ -22,6 +22,13 @@ class DataHandler:
         return data.split("\n")
 
     @staticmethod
+    def concat_path_sentences(paths: List[str]) -> List[str]:
+        sentences = []
+        for path in paths:
+            sentences.extend(DataHandler.lines_from_file(path))
+        return sentences
+
+    @staticmethod
     def load_folder_textfiles(directory: str) -> str:
         files = []
         for (dirpath, dirnames, filenames) in os.walk(directory):

@@ -3,9 +3,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from typing import List
 
-import matplotlib.pyplot as plt
-from typing import List
-
 
 def plot_single_benchmark(df: pd.DataFrame, benchmark: str, grouping: List[str], coloring: str,
                           paper_mode: bool = True):

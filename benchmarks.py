@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 import constant
 from UMLS import UMLSMapper, UMLSEvaluator, MRRELEvaluator
-from evaluation_resource import NDFEvaluator, SRSEvaluator
+from evaluation_resource import NDFEvaluator, SRSEvaluator, EvaluationResource
 from joblib import Parallel, delayed
 import multiprocessing
 
@@ -32,16 +32,13 @@ def revert_list_dict(dictionary: Dict[str, Set[str]], filter_collection: Iterabl
 
 class Benchmark(ABC):
     def __init__(self, embeddings: Tuple[Union[gensim.models.KeyedVectors], str, str, str],
-                 umls_mapper: UMLSMapper,
-                 umls_evaluator: UMLSEvaluator = None):
+                 umls_mapper: UMLSMapper):
         self.vectors, self.dataset, self.algorithm, self.preprocessing = embeddings
         try:
             self.vocab = self.vectors.vocab
         except AttributeError:
             self.vocab = self.vectors.vocabulary
         self.umls_mapper = umls_mapper
-        if umls_evaluator:
-            self.umls_evaluator = umls_evaluator
 
         self.oov_embedding = None
 
@@ -140,8 +137,12 @@ class Benchmark(ABC):
 class CategoryBenchmark(Benchmark):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
-                 umls_evaluator: UMLSEvaluator):
-        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)
+                 evaluators: List[EvaluationResource]):
+        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
+        self.umls_evaluator = None
+        for evaluator in evaluators:
+            if isinstance(evaluator, UMLSEvaluator):
+                self.umls_evaluator = evaluator
 
         self.concept2category = {concept: category for concept, category in self.umls_evaluator.concept2category.items()
                                  if concept in self.vocab}
@@ -149,7 +150,6 @@ class CategoryBenchmark(Benchmark):
         self.category2concepts = revert_list_dict(self.concept2category)
 
     def evaluate(self) -> float:
-        # score = 0.999
         score = self.all_categories_benchmark()
         return score
 
@@ -221,8 +221,13 @@ class CategoryBenchmark(Benchmark):
 class SilhouetteCoefficient(Benchmark):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
-                 umls_evaluator: UMLSEvaluator):
-        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)
+                 evaluators: List[EvaluationResource]):
+        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
+        self.umls_evaluator = None
+        for evaluator in evaluators:
+            if isinstance(evaluator, UMLSEvaluator):
+                self.umls_evaluator = evaluator
+
         self.concept2category = {concept: category for concept, category in self.umls_evaluator.concept2category.items()
                                  if concept in self.vocab}
 
@@ -291,8 +296,13 @@ class SilhouetteCoefficient(Benchmark):
 class EmbeddingSilhouetteCoefficient(Benchmark):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
-                 umls_evaluator: UMLSEvaluator):
-        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)
+                 umls_evaluator: UMLSEvaluator,
+                 evaluators: List[EvaluationResource]):
+        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
+        self.umls_evaluator = None
+        for evaluator in evaluators:
+            if isinstance(evaluator, UMLSEvaluator):
+                self.umls_evaluator = evaluator
         self.concept2category = {concept: category for concept, category in self.umls_evaluator.concept2category.items()
                                  if concept in self.vocab}
 
@@ -366,11 +376,20 @@ class Relation(Enum):
 class ConceptualSimilarityChoi(Benchmark):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
-                 umls_evaluator: UMLSEvaluator,
-                 ndf_evaluator: NDFEvaluator):
+                 evaluators: List[EvaluationResource]):
         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
-        self.ndf_evaluator = ndf_evaluator
-        self.umls_evaluator = umls_evaluator
+        self.ndf_evaluator = None
+        self.umls_evaluator = None
+        for evaluator in evaluators:
+            if isinstance(evaluator, UMLSEvaluator):
+                self.umls_evaluator = evaluator
+            if isinstance(evaluator, NDFEvaluator):
+                self.ndf_evaluator = evaluator
+
+        # for key, value in self.__dict__.items():
+        #     if 'evaluator' in key.lower():
+        #         if value is None:
+        #             raise UserWarning(f"{key} not in list")
 
         self.concept2category = {concept: category for concept, category in self.umls_evaluator.concept2category.items()
                                  if concept in self.vocab}
@@ -431,12 +450,16 @@ class ConceptualSimilarityChoi(Benchmark):
 class MedicalRelatednessChoi(Benchmark, ABC):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
-                 umls_evaluator: UMLSEvaluator,
-                 ndf_evaluator: NDFEvaluator,
-                 relation: Relation):
+                 relation: Relation,
+                 evaluators: List[EvaluationResource]):
         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
-        self.ndf_evaluator = ndf_evaluator
-        self.umls_evaluator = umls_evaluator
+        self.ndf_evaluator = None
+        self.umls_evaluator = None
+        for evaluator in evaluators:
+            if isinstance(evaluator, UMLSEvaluator):
+                self.umls_evaluator = evaluator
+            if isinstance(evaluator, NDFEvaluator):
+                self.ndf_evaluator = evaluator
 
         self.concept2category = {concept: category for concept, category in self.umls_evaluator.concept2category.items()
                                  if concept in self.vocab}
@@ -520,21 +543,21 @@ class MedicalRelatednessChoi(Benchmark, ABC):
 class MedicalRelatednessMayTreatChoi(MedicalRelatednessChoi):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
-                 umls_evaluator: UMLSEvaluator,
-                 ndf_evaluator: NDFEvaluator):
+                 evaluators: List[EvaluationResource]):
         super().__init__(embeddings=embeddings,
-                         umls_mapper=umls_mapper, umls_evaluator=umls_evaluator, ndf_evaluator=ndf_evaluator,
-                         relation=Relation.MAY_TREAT)
+                         umls_mapper=umls_mapper,
+                         relation=Relation.MAY_TREAT,
+                         evaluators=evaluators)
 
 
 class MedicalRelatednessMayPreventChoi(MedicalRelatednessChoi):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
-                 umls_evaluator: UMLSEvaluator,
-                 ndf_evaluator: NDFEvaluator):
+                 evaluators: List[EvaluationResource]):
         super().__init__(embeddings=embeddings,
-                         umls_mapper=umls_mapper, umls_evaluator=umls_evaluator, ndf_evaluator=ndf_evaluator,
-                         relation=Relation.MAY_PREVENT)
+                         umls_mapper=umls_mapper,
+                         relation=Relation.MAY_PREVENT,
+                         evaluators=evaluators)
 
 
 class HumanAssessmentTypes(Enum):
@@ -547,10 +570,17 @@ class HumanAssessmentTypes(Enum):
 class HumanAssessment(Benchmark):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
-                 srs_evaluator: SRSEvaluator,
+                 evaluators: List[EvaluationResource],
                  use_spearman: bool = True):
         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
-        self.srs_evaluator = srs_evaluator
+        self.srs_evaluator = None
+        self.umls_evaluator = None
+        for evaluator in evaluators:
+            if isinstance(evaluator, UMLSEvaluator):
+                self.umls_evaluator = evaluator
+            if isinstance(evaluator, SRSEvaluator):
+                self.srs_evaluator = evaluator
+
         self.use_spearman = use_spearman
 
     def get_mae(self, human_assessment_dict):
@@ -624,9 +654,9 @@ class HumanAssessment(Benchmark):
 
 class AbstractBeamBenchmark(Benchmark, ABC):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
-                 umls_mapper: UMLSMapper,
-                 umls_evaluator: UMLSEvaluator):
-        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)
+                 umls_mapper: UMLSMapper):
+        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
+
 
     @staticmethod
     def sample(elements: List, bootstraps: int = 10):
@@ -659,8 +689,12 @@ class AbstractBeamBenchmark(Benchmark, ABC):
 class SemanticTypeBeam(AbstractBeamBenchmark):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
-                 umls_evaluator: UMLSEvaluator):
-        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)
+                 evaluators: List[EvaluationResource]):
+        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
+        self.umls_evaluator = None
+        for evaluator in evaluators:
+            if isinstance(evaluator, UMLSEvaluator):
+                self.umls_evaluator = evaluator
 
     def calculate_power(self):
         total_positives = 0
@@ -714,10 +748,15 @@ class SemanticTypeBeam(AbstractBeamBenchmark):
 class NDFRTBeam(AbstractBeamBenchmark):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
-                 umls_evaluator: UMLSEvaluator,
-                 ndf_evaluator: NDFEvaluator):
-        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)
-        self.ndf_evaluator = ndf_evaluator
+                 evaluators: List[EvaluationResource]):
+        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
+        self.umls_evaluator = None
+        self.ndf_evaluator = None
+        for evaluator in evaluators:
+            if isinstance(evaluator, UMLSEvaluator):
+                self.umls_evaluator = evaluator
+            if isinstance(evaluator, NDFEvaluator):
+                self.ndf_evaluator = evaluator
 
     def get_concepts_of_semantic_types(self, semantic_types):
         concepts = set()
@@ -785,10 +824,15 @@ class NDFRTBeam(AbstractBeamBenchmark):
 class CausalityBeam(AbstractBeamBenchmark):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
-                 umls_evaluator: UMLSEvaluator,
-                 mrrelevaluator: MRRELEvaluator):
-        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)
-        self.mrrelevaluator = mrrelevaluator
+                 evaluators: List[EvaluationResource]):
+        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
+        self.umls_evaluator = None
+        self.mrrelevaluator = None
+        for evaluator in evaluators:
+            if isinstance(evaluator, UMLSEvaluator):
+                self.umls_evaluator = evaluator
+            if isinstance(evaluator, MRRELEvaluator):
+                self.mrrelevaluator = evaluator
 
     def get_concepts_of_semantic_types(self, semantic_types):
         concepts = set()
@@ -843,16 +887,23 @@ class CausalityBeam(AbstractBeamBenchmark):
                                      f"{(total_positives / total_observed_scores):.4f} score")
             tqdm_bar.update()
 
+        if total_observed_scores == 0:
+            return 0
         return total_positives / total_observed_scores
 
 
 class AssociationBeam(AbstractBeamBenchmark):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
-                 umls_evaluator: UMLSEvaluator,
-                 mrrelevaluator: MRRELEvaluator):
-        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)
-        self.mrrelevaluator = mrrelevaluator
+                 evaluators: List[EvaluationResource]):
+        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
+        self.umls_evaluator = None
+        self.mrrelevaluator = None
+        for evaluator in evaluators:
+            if isinstance(evaluator, UMLSEvaluator):
+                self.umls_evaluator = evaluator
+            if isinstance(evaluator, MRRELEvaluator):
+                self.mrrelevaluator = evaluator
 
     def get_concepts_of_semantic_types(self, semantic_types):
         concepts = set()
@@ -907,4 +958,6 @@ class AssociationBeam(AbstractBeamBenchmark):
                                      f"{(total_positives / total_observed_scores):.4f} score")
             tqdm_bar.update()
 
+        if total_observed_scores == 0:
+            return 0
         return total_positives / total_observed_scores

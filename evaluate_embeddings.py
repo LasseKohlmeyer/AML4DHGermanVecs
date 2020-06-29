@@ -26,6 +26,8 @@ class Evaluation:
                 self.benchmarks.append(NDFRTBeam(embedding, umls_mapper, umls_evaluator, ndf_evaluator))
             if CausalityBeam in benchmark_classes:
                 self.benchmarks.append(CausalityBeam(embedding, umls_mapper, umls_evaluator, mrrele_evaluator))
+            if AssociationBeam in benchmark_classes:
+                self.benchmarks.append(AssociationBeam(embedding, umls_mapper, umls_evaluator, mrrele_evaluator))
             if SilhouetteCoefficient in benchmark_classes:
                 self.benchmarks.append(SilhouetteCoefficient(embedding, umls_mapper, umls_evaluator))
             if ConceptualSimilarityChoi in benchmark_classes:
@@ -214,7 +216,8 @@ def main():
         # CategoryBenchmark,
         # CausalityBeam,
         # NDFRTBeam,
-        # SemanticTypeBeam,
+        SemanticTypeBeam,
+        AssociationBeam,
         # # SilhouetteCoefficient,
         # ConceptualSimilarityChoi,
         # MedicalRelatednessMayTreatChoi,

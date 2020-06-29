@@ -3,17 +3,23 @@ import warnings
 from collections import defaultdict
 from multiprocessing.spawn import freeze_support
 from typing import List, Union
-
 from tqdm import tqdm
-
 from transform_data import DataHandler
 import numpy as np
-warnings.simplefilter(action='ignore', category=FutureWarning)
 from embeddings import Embeddings
-from flair.data import Dictionary, Sentence, Token
+from sklearn.model_selection import train_test_split
+warnings.simplefilter(action='ignore', category=FutureWarning)
+from flair.data import Dictionary, Sentence
 from flair.embeddings import FlairEmbeddings, TransformerWordEmbeddings
 from flair.trainers.language_model_trainer import LanguageModelTrainer, TextCorpus
-from sklearn.model_selection import train_test_split
+
+
+def determine_algorithm_from_string(flair_algorithm_string: str):
+    print(flair_algorithm_string)
+    if 'bert' in flair_algorithm_string:
+        return TransformerWordEmbeddings, 'bert'
+    else:
+        return FlairEmbeddings, 'flair'
 
 
 def build_flair_corpus(sentences: List[str], root_path: str):
@@ -49,11 +55,14 @@ def build_flair_corpus(sentences: List[str], root_path: str):
     return sentences
 
 
-def retrain_flair(corpus_path: str, model_path: str):
+def retrain_flair(corpus_path: str, model_path: str, flair_algorithm: str = 'de-forward'):
+    use_embedding, algorithm = determine_algorithm_from_string(flair_algorithm_string=flair_algorithm)
     # instantiate an existing LM, such as one from the FlairEmbeddings
-    language_model = FlairEmbeddings('news-forward').lm
-    language_model = FlairEmbeddings('de-forward').lm
-    # language_model = TransformerWordEmbeddings('bert-base-german-cased').model
+    model = use_embedding(flair_algorithm)
+    if algorithm == 'bert':
+        language_model = model.model
+    else:
+        language_model = model.lm
 
     # are you fine-tuning a forward or backward LM?
     is_forward_lm = language_model.is_forward_lm
@@ -81,14 +90,21 @@ def retrain_flair(corpus_path: str, model_path: str):
 
 def flair_embedding(raw_sentences: Union[List[str], List[List[str]]],
                     flair_model_path: str,
-                    retrain_corpus_path: str = None):
+                    retrain_corpus_path: str = None,
+                    flair_algorithm: str = None):
     freeze_support()
-
+    if flair_algorithm is None:
+        flair_algorithm = flair_model_path
     if retrain_corpus_path:
         if not os.path.isdir(retrain_corpus_path):
             raw_sentences = build_flair_corpus(raw_sentences, retrain_corpus_path)
-        retrain_flair(retrain_corpus_path, flair_model_path)
-    embedding = FlairEmbeddings(os.path.join(flair_model_path, 'best-lm.pt'))
+        retrain_flair(retrain_corpus_path, flair_model_path, flair_algorithm=flair_algorithm)
+    if os.path.exists(os.path.dirname(flair_model_path)):
+        flair_model_path = os.path.join(flair_model_path, 'best-lm.pt')
+
+    use_embedding, _ = determine_algorithm_from_string(flair_algorithm_string=flair_algorithm)
+    print(use_embedding, flair_algorithm)
+    embedding = use_embedding(flair_model_path)
 
     if any(isinstance(el, list) for el in raw_sentences):
         use_tokenizer = False
@@ -112,14 +128,16 @@ def flair_embedding(raw_sentences: Union[List[str], List[List[str]]],
     return Embeddings.to_gensim_binary(keyed_vecs)
 
 
-# if __name__ == '__main__':
-#     paths_to_input_sentences = [
-#         'E:/AML4DH-DATA/corp_test_sentences.txt'
-#     ]
-#     corpus_path = 'E:/AML4DH-DATA/test_corp'
-#     flair_model_path = 'resources/taggers/language_model'
-#     save_path = f"E:/AML4DHGermanVecs/data/conv_flair_all.kv"
-#     sentences = DataHandler.concat_path_sentences(paths_to_input_sentences)[:10]
-#     vecs = flair_embedding(sentences, flair_model_path, retrain_corpus_path=None)
-#
-#     Embeddings.save(vecs, path=save_path)
+if __name__ == '__main__':
+    paths_to_input_sentences = [
+        'E:/AML4DH-DATA/corp_test_sentences.txt'
+    ]
+    corpus_path = 'E:/AML4DH-DATA/test_corp'
+    # flair_model_path = 'resources/taggers/language_model'
+    flair_model_path = 'de-forward'
+    # flair_model_path = 'bert-base-german-cased'
+    save_path = f"E:/AML4DHGermanVecs/data/conv_flair_all.kv"
+    sentences = DataHandler.concat_path_sentences(paths_to_input_sentences)[:10]
+    vecs = flair_embedding(sentences, flair_model_path, retrain_corpus_path=None)
+
+    Embeddings.save(vecs, path=save_path)

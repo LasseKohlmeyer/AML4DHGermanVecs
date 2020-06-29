@@ -5,7 +5,7 @@ import spacy
 
 from UMLS import UMLSMapper
 from embeddings import Embeddings
-from train_flair_embeddings import flair_embedding
+from flair_embeddings import flair_embedding
 from transform_data import DataHandler
 
 
@@ -130,7 +130,7 @@ def sentence_data2vec(path: Union[str, List[str]], embedding_name: str,
     # vecs = Embeddings.calculate_vectors([cpg_words], use_phrases=False)
 
     if is_flair:
-        vecs = flair_embedding(data_sentences, flair_model_path, flair_corpus_path)
+        vecs = flair_embedding(data_sentences, flair_model_path, flair_corpus_path, 'de-forward')
     else:
         vecs = Embeddings.calculate_vectors(data_sentences,
                                             use_phrases=use_phrases,
@@ -340,6 +340,7 @@ def main():
     # file_name = "no_prep_vecs_test"
     #
     # Embeddings.save_medical(vecs, file_name, umls_mapper)
+
 
 
 if __name__ == "__main__":

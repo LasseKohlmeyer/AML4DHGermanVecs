@@ -255,4 +255,4 @@ class MRRELEvaluator(EvaluationResource):
     def load_from_json(self, path: str):
         with open(path, 'r', encoding='utf-8') as file:
             data = json.loads(file.read())
-        return data["mrrel"], data["mrrel_reverse"]
+        return data["mrrel_cause"], data["mrrel_association"]

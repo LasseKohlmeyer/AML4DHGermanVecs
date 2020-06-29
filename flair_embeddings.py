@@ -128,16 +128,16 @@ def flair_embedding(raw_sentences: Union[List[str], List[List[str]]],
     return Embeddings.to_gensim_binary(keyed_vecs)
 
 
-if __name__ == '__main__':
-    paths_to_input_sentences = [
-        'E:/AML4DH-DATA/corp_test_sentences.txt'
-    ]
-    corpus_path = 'E:/AML4DH-DATA/test_corp'
-    # flair_model_path = 'resources/taggers/language_model'
-    flair_model_path = 'de-forward'
-    # flair_model_path = 'bert-base-german-cased'
-    save_path = f"E:/AML4DHGermanVecs/data/conv_flair_all.kv"
-    sentences = DataHandler.concat_path_sentences(paths_to_input_sentences)[:10]
-    vecs = flair_embedding(sentences, flair_model_path, retrain_corpus_path=None)
-
-    Embeddings.save(vecs, path=save_path)
+# if __name__ == '__main__':
+#     paths_to_input_sentences = [
+#         'E:/AML4DH-DATA/corp_test_sentences.txt'
+#     ]
+#     corpus_path = 'E:/AML4DH-DATA/test_corp'
+#     # flair_model_path = 'resources/taggers/language_model'
+#     flair_model_path = 'de-forward'
+#     # flair_model_path = 'bert-base-german-cased'
+#     save_path = f"E:/AML4DHGermanVecs/data/conv_flair_all.kv"
+#     sentences = DataHandler.concat_path_sentences(paths_to_input_sentences)[:10]
+#     vecs = flair_embedding(sentences, flair_model_path, retrain_corpus_path=None)
+#
+#     Embeddings.save(vecs, path=save_path)

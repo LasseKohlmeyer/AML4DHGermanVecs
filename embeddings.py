@@ -11,6 +11,8 @@ from tqdm import tqdm
 from numpy import float32 as real
 from gensim import utils
 
+from UMLS import UMLSMapper
+
 
 class Embeddings:
     @staticmethod
@@ -243,6 +245,28 @@ class Embeddings:
     @staticmethod
     def transform_glove_in_word2vec(glove_input_file: str, word2vec_output_file: str):
         glove2word2vec(glove_input_file, word2vec_output_file)
+
+    @staticmethod
+    def assign_concepts_to_vecs(vectors: gensim.models.KeyedVectors, umls_mapper: UMLSMapper):
+        addable_concepts = []
+        addable_vectors = []
+        for concept, terms in umls_mapper.umls_reverse_dict.items():
+            concept_vec = []
+            for term in terms:
+                term_tokens = term.split()
+                token_vecs = []
+                for token in term_tokens:
+                    if token in vectors.vocab:
+                        token_vecs.append(vectors.get_vector(token))
+                if len(term_tokens) == len(token_vecs):
+                    term_vector = sum(token_vecs)
+                    concept_vec.append(term_vector)
+            if len(concept_vec) > 0:
+                addable_concepts.append(concept)
+                addable_vectors.append(sum(concept_vec) / len(concept_vec))
+        vectors.add(addable_concepts, addable_vectors)
+        print(len(addable_concepts))
+        return vectors
 
 # # sents = [" ".join(['C0850666', 'ist', 'der', 'wesentliche', 'Risikofaktor', 'für', 'das', 'C0699791', '.']),
 # #          " ".join(['Die', 'H.', 'pylori-Eradikation', 'mit', 'dem', 'Ziel', 'der', 'Magenkarzinomprävention', 'sollte', 'bei',

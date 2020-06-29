@@ -218,11 +218,11 @@ class UMLSEvaluator(EvaluationResource):
 
 class MRRELEvaluator(EvaluationResource):
     def set_attributes(self, *args):
-        self.mrrel, self.mrrel_reverse = args
+        self.mrrel_cause, self.mrrel_association = args
 
     def __init__(self, from_dir: str = None, json_path: str = "umls_rel_eval.json"):
-        self.mrrel = None
-        self.mrrel_reverse = None
+        self.mrrel_cause = None
+        self.mrrel_association = None
         self.check_for_json_and_parse(from_dir=from_dir, json_path=json_path)
 
     def load_semantics(self, directory):
@@ -233,16 +233,24 @@ class MRRELEvaluator(EvaluationResource):
         df = df.drop(columns=["AUI1", "REL", "STYPE1", "AUI2", "STYPE2", "RUI", "SRUI", "SAB", "SL",
                               "RG", "DIR", "SUPPRESS", "CVF", "NONE"])
 
-        df = df.loc[df['RELA'].isin(['induces', 'cause_of', 'causative_agent_of'])]
-        print(df.head(100))
+        df_cause = df.loc[df['RELA'].isin(['induces', 'cause_of', 'causative_agent_of'])]
+        print(df_cause.head(100))
 
-        mrrel = defaultdict(list)
-        mrrel_reverse = defaultdict(list)
+        mrrel_cause = defaultdict(list)
 
-        for i, row in tqdm(df.iterrows(), total=len(df), desc="Load UMLS data"):
-            mrrel[row["CUI1"]].append(row["CUI2"])
-            mrrel_reverse[row["CUI2"]].append(row["CUI1"])
-        return mrrel, mrrel_reverse
+        for i, row in tqdm(df_cause.iterrows(), total=len(df_cause), desc="Find causative data"):
+            mrrel_cause[row["CUI1"]].append(row["CUI2"])
+
+        df_association = df.loc[df['RELA'].isin(['associated_disease', 'associated_finding_of',
+                                                 'clinically_associated_with'])]
+        print(df_association.head(100))
+
+        mrrel_association = defaultdict(list)
+
+        for i, row in tqdm(df_cause.iterrows(), total=len(df_association), desc="Find association data"):
+            mrrel_association[row["CUI1"]].append(row["CUI2"])
+
+        return mrrel_cause, mrrel_association
 
     def load_from_json(self, path: str):
         with open(path, 'r', encoding='utf-8') as file:

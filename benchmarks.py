@@ -802,7 +802,7 @@ class CausalityBeam(AbstractBeamBenchmark):
         total_positives = 0
         total_observed_scores = 0
         causative_relations = []
-        for cause, effects in self.mrrelevaluator.mrrel.items():
+        for cause, effects in self.mrrelevaluator.mrrel_cause.items():
             for effect in effects:
                 if cause in self.vocab and effect in self.vocab:
                     causative_relations.append((cause, effect))
@@ -846,3 +846,65 @@ class CausalityBeam(AbstractBeamBenchmark):
         return total_positives / total_observed_scores
 
 
+class AssociationBeam(AbstractBeamBenchmark):
+    def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
+                 umls_mapper: UMLSMapper,
+                 umls_evaluator: UMLSEvaluator,
+                 mrrelevaluator: MRRELEvaluator):
+        super().__init__(embeddings=embeddings, umls_mapper=umls_mapper, umls_evaluator=umls_evaluator)
+        self.mrrelevaluator = mrrelevaluator
+
+    def get_concepts_of_semantic_types(self, semantic_types):
+        concepts = set()
+        for semantic_type in semantic_types:
+            concepts.update([concept
+                             for concept in self.umls_evaluator.category2concepts[semantic_type]
+                             if concept in self.vocab])
+        return list(concepts)
+
+    def calculate_power(self):
+        total_positives = 0
+        total_observed_scores = 0
+        associated_relations = []
+        for concept, associated_concepts in self.mrrelevaluator.mrrel_association.items():
+            for associated_concept in associated_concepts:
+                if concept in self.vocab and associated_concept in self.vocab:
+                    associated_relations.append((concept, associated_concept))
+                # else:
+                #     total_observed_scores += 1
+
+        tqdm_bar = tqdm(associated_relations, total=len(associated_relations))
+        for treatment_condition in tqdm_bar:
+            current_concept, current_association = treatment_condition
+            if current_concept in self.umls_evaluator.concept2category.keys() \
+                    and current_association in self.umls_evaluator.concept2category.keys():
+                concept_semantic_types = self.umls_evaluator.concept2category[current_concept]
+                associated_semantic_types = self.umls_evaluator.concept2category[current_association]
+            else:
+                continue
+
+            related_concepts = self.get_concepts_of_semantic_types(concept_semantic_types)
+            associated_concepts = self.get_concepts_of_semantic_types(associated_semantic_types)
+
+            if len(related_concepts) == 0 or len(associated_concepts) == 0:
+                continue
+
+            sig_threshold = self.bootstrap(related_concepts, associated_concepts, sample_size=10000)
+
+            num_observed_scores = 0
+            num_positives = 0
+
+            observed_score = self.cosine(vector1=self.get_concept_vector(current_concept),
+                                         vector2=self.get_concept_vector(current_association))
+            if observed_score >= sig_threshold:
+                num_positives += 1
+            num_observed_scores += 1
+
+            total_positives += num_positives
+            total_observed_scores += num_observed_scores
+            tqdm_bar.set_description(f"Association Beam ({self.dataset}|{self.algorithm}|{self.preprocessing}): "
+                                     f"{sig_threshold:.4f} threshold, "
+                                     f"{(total_positives / total_observed_scores):.4f} score")
+            tqdm_bar.update()
+
+        return total_positives / total_observed_scores

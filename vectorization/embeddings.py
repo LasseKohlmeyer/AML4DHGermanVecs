@@ -467,7 +467,7 @@ class Flair:
             for token in flair_sentence:
                 keyed_vecs[token.text].append(token.embedding.cpu())
 
-        keyed_vecs = {key: torch.mean(torch.stack(vecs).cpu()) for key, vecs in keyed_vecs.items()}
+        keyed_vecs = {key: np.array(torch.mean(torch.stack(vecs), 0).cpu()) for key, vecs in keyed_vecs.items()}
 
         return Embeddings.to_gensim_binary(keyed_vecs)
 

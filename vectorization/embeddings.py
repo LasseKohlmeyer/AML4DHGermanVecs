@@ -230,7 +230,10 @@ class Embeddings:
 
     @staticmethod
     def save(word_vectors: gensim.models.KeyedVectors, path: str):
-        word_vectors.save(get_tmpfile(path))
+        try:
+            word_vectors.save(get_tmpfile(path))
+        except FileNotFoundError:
+            word_vectors.save(path)
 
     @staticmethod
     def save_medical(word_vectors: gensim.models.KeyedVectors, name: str, umls_mapping, restrict=True):

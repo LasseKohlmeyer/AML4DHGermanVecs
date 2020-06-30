@@ -4,8 +4,8 @@ from typing import Tuple, List
 import gensim
 
 from resource.UMLS import UMLSMapper
-from benchmarking.benchmarks import Benchmark
-from resource.other_resources import Evaluator
+from .benchmarks import Benchmark
+from ..resource.other_resources import Evaluator
 
 import pandas as pd
 

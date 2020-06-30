@@ -64,7 +64,7 @@ class Embeddings:
                     else:
                         fout.write(utils.to_utf8("%s %s\n" % (word, ' '.join(repr(val) for val in row))))
 
-        file_name = '/data/train.bin'
+        file_name = 'data/train.bin'
         dim = 0
         for vec in dict_vecs.values():
             dim = len(vec)

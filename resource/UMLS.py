@@ -13,7 +13,7 @@ from itertools import chain
 import spacy
 from spacy.matcher import PhraseMatcher
 
-from resource.other_resources import Evaluator
+from .other_resources import Evaluator
 
 
 class UMLSMapper:

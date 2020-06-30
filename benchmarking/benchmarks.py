@@ -12,9 +12,9 @@ from gensim.models.fasttext import load_facebook_model
 from scipy.stats.mstats import spearmanr
 from tqdm import tqdm
 
-from german_vec_pipeline import constant
-from german_vec_pipeline.UMLS import UMLSMapper, UMLSEvaluator, MRRELEvaluator
-from german_vec_pipeline.resources import NDFEvaluator, SRSEvaluator, Evaluator
+from benchmarking import constant
+from resource.UMLS import UMLSMapper, UMLSEvaluator, MRRELEvaluator
+from resource.other_resources import NDFEvaluator, SRSEvaluator, Evaluator
 from joblib import Parallel, delayed
 import multiprocessing
 

@@ -1,5 +1,5 @@
-from german_vec_pipeline.embeddings import Embeddings
-from german_vec_pipeline.transform_data import DataHandler
+from vectorization.embeddings import Embeddings
+from utils.transform_data import DataHandler
 
 
 def main():

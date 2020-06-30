@@ -3,9 +3,9 @@ from typing import Tuple, List
 
 import gensim
 
-from german_vec_pipeline.UMLS import UMLSMapper
-from german_vec_pipeline.benchmarks import Benchmark
-from german_vec_pipeline.resources import Evaluator
+from resource.UMLS import UMLSMapper
+from benchmarking.benchmarks import Benchmark
+from resource.other_resources import Evaluator
 
 import pandas as pd
 

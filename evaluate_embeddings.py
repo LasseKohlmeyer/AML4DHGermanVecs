@@ -1,7 +1,7 @@
-from german_vec_pipeline.benchmarks import *
-from german_vec_pipeline.embeddings import Embeddings
-from german_vec_pipeline.evaluation import Evaluation
-from german_vec_pipeline.resources import NDFEvaluator, SRSEvaluator
+from benchmarking.benchmarks import *
+from vectorization.embeddings import Embeddings
+from benchmarking.evaluation import Evaluation
+from resource.other_resources import NDFEvaluator, SRSEvaluator
 from collections import namedtuple
 
 

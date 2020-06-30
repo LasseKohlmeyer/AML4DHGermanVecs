@@ -16,13 +16,12 @@ from tqdm import tqdm
 
 from numpy import float32 as real
 from gensim import utils
-
+from resource.UMLS import UMLSMapper
+from utils.transform_data import DataHandler
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
-from german_vec_pipeline.UMLS import UMLSMapper
-from german_vec_pipeline.transform_data import DataHandler
 
 
 class Embeddings:

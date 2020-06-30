@@ -1,5 +1,5 @@
-from german_vec_pipeline.embeddings import Flair, Embeddings
-from german_vec_pipeline.transform_data import DataHandler
+from vectorization.embeddings import Flair, Embeddings
+from utils.transform_data import DataHandler
 
 
 if __name__ == '__main__':

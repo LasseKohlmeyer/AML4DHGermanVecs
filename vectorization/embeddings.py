@@ -53,6 +53,7 @@ class Embeddings:
                 total_vec = len(vocab)
             vector_size = vectors.shape[1]
             assert (len(vocab), vector_size) == vectors.shape
+
             with utils.open(fname, 'wb') as fout:
                 fout.write(utils.to_utf8("%s %s\n" % (total_vec, vector_size)))
                 # store in sorted order: most frequent words at the top
@@ -63,7 +64,7 @@ class Embeddings:
                     else:
                         fout.write(utils.to_utf8("%s %s\n" % (word, ' '.join(repr(val) for val in row))))
 
-        file_name = '../data/train.bin'
+        file_name = 'E:/AML4DHGermanVecs/data/train.bin'
         dim = 0
         for vec in dict_vecs.values():
             dim = len(vec)
@@ -71,7 +72,6 @@ class Embeddings:
         m = gensim.models.keyedvectors.Word2VecKeyedVectors(vector_size=dim)
         m.vocab = dict_vecs
         m.vectors = np.array(list(dict_vecs.values()))
-        # print(m.vocab)
         my_save_word2vec_format(binary=True, fname=file_name, total_vec=len(dict_vecs), vocab=m.vocab,
                                 vectors=m.vectors)
         reloaded_vecs = gensim.models.keyedvectors.Word2VecKeyedVectors.load_word2vec_format(file_name, binary=True,

@@ -460,7 +460,7 @@ class Flair:
         for flair_sentence in tqdm(flair_sents, desc='Embed sentences', total=len(flair_sents)):
             embedding.embed(flair_sentence)
             for token in flair_sentence:
-                keyed_vecs[token.text].append(token.embedding)
+                keyed_vecs[token.text].append(token.embedding.cpu())
 
         keyed_vecs = {key: np.array(sum(vecs) / len(vecs)) for key, vecs in keyed_vecs.items()}
 

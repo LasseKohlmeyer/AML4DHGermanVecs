@@ -22,8 +22,6 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
-
-
 class Embeddings:
     @staticmethod
     def to_gensim_binary(dict_vecs: Dict[str, np.ndarray]) -> gensim.models.KeyedVectors:
@@ -357,7 +355,6 @@ class Embeddings:
 class Flair:
     @staticmethod
     def determine_algorithm_from_string(flair_algorithm_string: str):
-        print(flair_algorithm_string)
         if 'bert' in flair_algorithm_string:
             return TransformerWordEmbeddings, 'bert'
         else:
@@ -397,7 +394,8 @@ class Flair:
         return sentences
 
     @classmethod
-    def retrain_flair(cls, corpus_path: str, model_path: str, flair_algorithm: str = 'de-forward'):
+    def retrain_flair(cls, corpus_path: str, model_path_dest: str, flair_algorithm: str = 'de-forward',
+                      epochs: int = 10):
         use_embedding, algorithm = cls.determine_algorithm_from_string(flair_algorithm_string=flair_algorithm)
         # instantiate an existing LM, such as one from the FlairEmbeddings
         model = use_embedding(flair_algorithm)
@@ -421,31 +419,33 @@ class Flair:
         # use the model trainer to fine-tune this model on your corpus
         trainer = LanguageModelTrainer(language_model, corpus)
 
-        trainer.train(model_path,
+        trainer.train(model_path_dest,
                       sequence_length=10,
                       mini_batch_size=10,
                       learning_rate=20,
-                      max_epochs=10,
+                      max_epochs=epochs,
                       patience=10,
                       checkpoint=True)
 
     @classmethod
     def get_flair_vectors(cls, raw_sentences: Union[List[str], List[List[str]]],
                           flair_model_path: str,
+                          flair_algorithm: str,
                           retrain_corpus_path: str = None,
-                          flair_algorithm: str = None):
+                          epochs: int = 10):
         freeze_support()
-        if flair_algorithm is None:
-            flair_algorithm = flair_model_path
+
+        # retrain
         if retrain_corpus_path:
             if not os.path.isdir(retrain_corpus_path):
                 raw_sentences = cls.build_flair_corpus(raw_sentences, retrain_corpus_path)
-            cls.retrain_flair(retrain_corpus_path, flair_model_path, flair_algorithm=flair_algorithm)
+            cls.retrain_flair(corpus_path=retrain_corpus_path, model_path_dest=flair_model_path,
+                              flair_algorithm=flair_algorithm, epochs=epochs)
         if os.path.exists(os.path.dirname(flair_model_path)):
             flair_model_path = os.path.join(flair_model_path, 'best-lm.pt')
 
         use_embedding, _ = cls.determine_algorithm_from_string(flair_algorithm_string=flair_algorithm)
-        print(use_embedding, flair_algorithm)
+
         embedding = use_embedding(flair_model_path)
 
         if any(isinstance(el, list) for el in raw_sentences):

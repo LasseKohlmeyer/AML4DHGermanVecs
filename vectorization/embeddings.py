@@ -457,7 +457,8 @@ class Flair:
         flair_sents = [Sentence(raw_sentence, use_tokenizer=use_tokenizer)
                        for raw_sentence in tqdm(raw_sentences,
                                                 desc="Convert to flair",
-                                                total=len(raw_sentences))]
+                                                total=len(raw_sentences))
+                       if raw_sentence != '' and len(raw_sentence)>0]
 
         keyed_vecs = defaultdict(list)
         for flair_sentence in tqdm(flair_sents, desc='Embed sentences', total=len(flair_sents)):

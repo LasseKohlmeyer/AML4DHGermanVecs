@@ -3,6 +3,7 @@ from collections import defaultdict
 from multiprocessing.spawn import freeze_support
 from typing import List, Dict, Union
 import gensim
+import torch
 from flair.data import Dictionary, Sentence
 from flair.embeddings import TransformerWordEmbeddings, FlairEmbeddings
 from flair.trainers.language_model_trainer import TextCorpus, LanguageModelTrainer
@@ -466,7 +467,7 @@ class Flair:
             for token in flair_sentence:
                 keyed_vecs[token.text].append(token.embedding.cpu())
 
-        keyed_vecs = {key: np.array(sum(vecs) / len(vecs)) for key, vecs in keyed_vecs.items()}
+        keyed_vecs = {key: torch.mean(torch.stack(vecs).cpu()) for key, vecs in keyed_vecs.items()}
 
         return Embeddings.to_gensim_binary(keyed_vecs)
 

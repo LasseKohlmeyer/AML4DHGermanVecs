@@ -465,9 +465,20 @@ class Flair:
         for flair_sentence in tqdm(flair_sents, desc='Embed sentences', total=len(flair_sents)):
             embedding.embed(flair_sentence)
             for token in flair_sentence:
-                keyed_vecs[token.text].append(token.embedding.cpu())
+                keyed_vecs[token.text].append(token.embedding.numpy())
 
-        keyed_vecs = {key: np.array(torch.mean(torch.stack(vecs), 0).cpu()) for key, vecs in keyed_vecs.items()}
+        # keyed_vecs = {}
+        # for flair_sentence in tqdm(flair_sents, desc='Embed sentences', total=len(flair_sents)):
+        #     embedding.embed(flair_sentence)
+        #     for token in flair_sentence:
+        #         if token.text in keyed_vecs:
+        #             cur, inc = keyed_vecs[token.text]
+        #             keyed_vecs[token.text] = (cur + (token.embedding.numpy() - cur) / (inc + 1), inc + 1)
+        #         else:
+        #             keyed_vecs[token.text] = (token.embedding.cpu(), 1)
+
+        # keyed_vecs = {key: np.array(torch.mean(torch.stack(vecs), 0).cpu()) for key, vecs in keyed_vecs.items()}
+        keyed_vecs = {key: sum(vecs)/len(vecs) for key, vecs in keyed_vecs.items()}
 
         return Embeddings.to_gensim_binary(keyed_vecs)
 

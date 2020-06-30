@@ -477,6 +477,7 @@ class Flair:
                     keyed_vecs[token.text] = (cur + (token.embedding.cpu() - cur) / (inc + 1), inc + 1)
                 else:
                     keyed_vecs[token.text] = (token.embedding.cpu(), 1)
+            flair_sentence.clear_embeddings()
         keyed_vecs = {key: np.array(vecs[0]) for key, vecs in keyed_vecs.items()}
 
         return Embeddings.to_gensim_binary(keyed_vecs)

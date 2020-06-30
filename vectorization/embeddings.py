@@ -425,7 +425,7 @@ class Flair:
                       sequence_length=10,
                       mini_batch_size=10,
                       learning_rate=20,
-                      max_epochs=1,
+                      max_epochs=10,
                       patience=10,
                       checkpoint=True)
 

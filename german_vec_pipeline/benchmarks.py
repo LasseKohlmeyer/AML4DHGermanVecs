@@ -8,15 +8,13 @@ from typing import Tuple, Dict, Set, Iterable, List, Union
 import gensim
 import numpy as np
 from gensim import matutils
-# from gensim.models.wrappers import FastText
 from gensim.models.fasttext import load_facebook_model
-from scipy.stats import mannwhitneyu, ttest_ind
 from scipy.stats.mstats import spearmanr
 from tqdm import tqdm
 
-import constant
-from UMLS import UMLSMapper, UMLSEvaluator, MRRELEvaluator
-from evaluation_resource import NDFEvaluator, SRSEvaluator, EvaluationResource
+from german_vec_pipeline import constant
+from german_vec_pipeline.UMLS import UMLSMapper, UMLSEvaluator, MRRELEvaluator
+from german_vec_pipeline.resources import NDFEvaluator, SRSEvaluator, Evaluator
 from joblib import Parallel, delayed
 import multiprocessing
 
@@ -137,7 +135,7 @@ class Benchmark(ABC):
 class CategoryBenchmark(Benchmark):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
-                 evaluators: List[EvaluationResource]):
+                 evaluators: List[Evaluator]):
         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
         self.umls_evaluator = None
         for evaluator in evaluators:
@@ -221,7 +219,7 @@ class CategoryBenchmark(Benchmark):
 class SilhouetteCoefficient(Benchmark):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
-                 evaluators: List[EvaluationResource]):
+                 evaluators: List[Evaluator]):
         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
         self.umls_evaluator = None
         for evaluator in evaluators:
@@ -297,7 +295,7 @@ class EmbeddingSilhouetteCoefficient(Benchmark):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
                  umls_evaluator: UMLSEvaluator,
-                 evaluators: List[EvaluationResource]):
+                 evaluators: List[Evaluator]):
         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
         self.umls_evaluator = None
         for evaluator in evaluators:
@@ -376,7 +374,7 @@ class Relation(Enum):
 class ConceptualSimilarityChoi(Benchmark):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
-                 evaluators: List[EvaluationResource]):
+                 evaluators: List[Evaluator]):
         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
         self.ndf_evaluator = None
         self.umls_evaluator = None
@@ -451,7 +449,7 @@ class MedicalRelatednessChoi(Benchmark, ABC):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
                  relation: Relation,
-                 evaluators: List[EvaluationResource]):
+                 evaluators: List[Evaluator]):
         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
         self.ndf_evaluator = None
         self.umls_evaluator = None
@@ -543,7 +541,7 @@ class MedicalRelatednessChoi(Benchmark, ABC):
 class MedicalRelatednessMayTreatChoi(MedicalRelatednessChoi):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
-                 evaluators: List[EvaluationResource]):
+                 evaluators: List[Evaluator]):
         super().__init__(embeddings=embeddings,
                          umls_mapper=umls_mapper,
                          relation=Relation.MAY_TREAT,
@@ -553,7 +551,7 @@ class MedicalRelatednessMayTreatChoi(MedicalRelatednessChoi):
 class MedicalRelatednessMayPreventChoi(MedicalRelatednessChoi):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
-                 evaluators: List[EvaluationResource]):
+                 evaluators: List[Evaluator]):
         super().__init__(embeddings=embeddings,
                          umls_mapper=umls_mapper,
                          relation=Relation.MAY_PREVENT,
@@ -570,7 +568,7 @@ class HumanAssessmentTypes(Enum):
 class HumanAssessment(Benchmark):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
-                 evaluators: List[EvaluationResource],
+                 evaluators: List[Evaluator],
                  use_spearman: bool = True):
         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
         self.srs_evaluator = None
@@ -689,7 +687,7 @@ class AbstractBeamBenchmark(Benchmark, ABC):
 class SemanticTypeBeam(AbstractBeamBenchmark):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
-                 evaluators: List[EvaluationResource]):
+                 evaluators: List[Evaluator]):
         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
         self.umls_evaluator = None
         for evaluator in evaluators:
@@ -748,7 +746,7 @@ class SemanticTypeBeam(AbstractBeamBenchmark):
 class NDFRTBeam(AbstractBeamBenchmark):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
-                 evaluators: List[EvaluationResource]):
+                 evaluators: List[Evaluator]):
         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
         self.umls_evaluator = None
         self.ndf_evaluator = None
@@ -824,7 +822,7 @@ class NDFRTBeam(AbstractBeamBenchmark):
 class CausalityBeam(AbstractBeamBenchmark):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
-                 evaluators: List[EvaluationResource]):
+                 evaluators: List[Evaluator]):
         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
         self.umls_evaluator = None
         self.mrrelevaluator = None
@@ -895,7 +893,7 @@ class CausalityBeam(AbstractBeamBenchmark):
 class AssociationBeam(AbstractBeamBenchmark):
     def __init__(self, embeddings: Tuple[gensim.models.KeyedVectors, str, str, str],
                  umls_mapper: UMLSMapper,
-                 evaluators: List[EvaluationResource]):
+                 evaluators: List[Evaluator]):
         super().__init__(embeddings=embeddings, umls_mapper=umls_mapper)
         self.umls_evaluator = None
         self.mrrelevaluator = None

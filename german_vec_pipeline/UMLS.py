@@ -13,7 +13,7 @@ from itertools import chain
 import spacy
 from spacy.matcher import PhraseMatcher
 
-from evaluation_resource import EvaluationResource
+from german_vec_pipeline.resources import Evaluator
 
 
 class UMLSMapper:
@@ -189,7 +189,7 @@ class UMLSMapper:
         return replaced_docs
 
 
-class UMLSEvaluator(EvaluationResource):
+class UMLSEvaluator(Evaluator):
     def set_attributes(self, *args):
         self.concept2category, self.category2concepts = args
 
@@ -216,7 +216,7 @@ class UMLSEvaluator(EvaluationResource):
         return data["concept2category"], data["category2concepts"]
 
 
-class MRRELEvaluator(EvaluationResource):
+class MRRELEvaluator(Evaluator):
     def set_attributes(self, *args):
         self.mrrel_cause, self.mrrel_association = args
 

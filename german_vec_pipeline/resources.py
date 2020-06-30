@@ -4,10 +4,9 @@ import os
 from typing import Dict, List
 from collections import defaultdict
 import pandas as pd
-from sklearn import preprocessing
 
 
-class EvaluationResource(ABC):
+class Evaluator(ABC):
     @abstractmethod
     def load_semantics(self, directory: str):
         raise NotImplementedError
@@ -37,7 +36,7 @@ class EvaluationResource(ABC):
         raise NotImplementedError
 
 
-class NDFEvaluator(EvaluationResource):
+class NDFEvaluator(Evaluator):
     def set_attributes(self, *args):
         self.may_treat, self.may_prevent, self.reverted_treat, self.reverted_prevent = args
 
@@ -79,7 +78,7 @@ class NDFEvaluator(EvaluationResource):
         return data["may_treat"], data["may_prevent"], data["reverted_treat"], data["reverted_prevent"]
 
 
-class SRSEvaluator(EvaluationResource):
+class SRSEvaluator(Evaluator):
     def set_attributes(self, *args):
         self.human_relatedness, self.human_similarity_cont, self.human_relatedness_cont, self.human_relatedness_mayo_srs = args
 
@@ -115,10 +114,3 @@ class SRSEvaluator(EvaluationResource):
         with open(path, 'r', encoding='utf-8') as file:
             data = json.loads(file.read())
         return data["human_relatedness"], data["human_similarity_cont"], data["human_relatedness_cont"], data['human_relatedness_mayo_srs']
-
-
-def main():
-    pass
-
-if __name__ == "__main__":
-    main()

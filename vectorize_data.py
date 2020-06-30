@@ -1,144 +1,5 @@
-from typing import List, Union
-
-import gensim
-import spacy
-
-from UMLS import UMLSMapper
-from embeddings import Embeddings
-from flair_embeddings import flair_embedding
-from transform_data import DataHandler
-
-
-def preprocess(tokens: List[str] = None, documents: List[List[str]] = None, lemmatize: bool = False,
-               lower: bool = False, pos_filter: list = None, remove_stopwords: bool = False,
-               remove_punctuation: bool = False, lan_model=None) -> List[List[str]]:
-    def token_representation(tok):
-        representation = str(tok.lemma_) if lemmatize else str(tok)
-        if lower:
-            representation = representation.lower()
-        return representation
-
-    nlp = spacy.load("de_core_news_sm") if lan_model is None else lan_model
-    nlp.Defaults.stop_words |= {"der", "die", "das", "Der", "Die", "Das", "bei", "Bei", "In", "in"}
-
-    if tokens:
-        for word in nlp.Defaults.stop_words:
-            lex = nlp.vocab[word]
-            lex.is_stop = True
-        preprocessed_tokens = []
-
-        if pos_filter is None:
-            for doc in nlp.pipe(tokens, disable=['parser', 'ner', 'tagger']):
-                for token in doc:
-                    if (not remove_stopwords or not token.is_stop) and (not remove_punctuation or token.is_alpha):
-                        preprocessed_tokens.append(token_representation(token))
-
-        else:
-            for doc in nlp.pipe(tokens, disable=['parser', 'ner']):
-                for token in doc:
-                    if (not remove_stopwords or not token.is_stop) and (
-                            not remove_punctuation or token.is_alpha) and token.pos_ in pos_filter:
-                        preprocessed_tokens.append(token_representation(token))
-        return [preprocessed_tokens]
-
-    if documents:
-        documents = [' '.join(doc) for doc in documents]
-        for word in nlp.Defaults.stop_words:
-            lex = nlp.vocab[word]
-            lex.is_stop = True
-        preprocessed_documents = []
-
-        if pos_filter is None:
-            for doc in nlp.pipe(documents, disable=['parser', 'ner', 'tagger']):
-                preprocessed_document = []
-                for token in doc:
-                    if (not remove_stopwords or not token.is_stop) and (not remove_punctuation or token.is_alpha):
-                        preprocessed_document.append(token_representation(token))
-                preprocessed_documents.append(preprocessed_document)
-
-        else:
-            for doc in nlp.pipe(documents, disable=['parser', 'ner']):
-                preprocessed_document = []
-                for token in doc:
-                    if (not remove_stopwords or not token.is_stop) and (
-                            not remove_punctuation or token.is_alpha) and token.pos_ in pos_filter:
-                        preprocessed_document.append(token_representation(token))
-                preprocessed_documents.append(preprocessed_document)
-
-        return preprocessed_documents
-
-
-def sentence_data2vec(path: Union[str, List[str]], embedding_name: str,
-                      embeddings_algorithm: Union[str, gensim.models.Word2Vec, gensim.models.FastText] = "word2vec",
-                      number_sentences: int = 1000,
-                      use_phrases: bool = False,
-                      restrict_vectors: bool = False,
-                      umls_replacement: bool = True,
-                      use_multiterm_replacement: bool = True,
-                      flair_model_path: str = None,
-                      flair_corpus_path: str = None,
-                      ):
-    is_flair = False
-    if isinstance(embeddings_algorithm, str) and embeddings_algorithm.lower() == "word2vec":
-        embeddings_algorithm = gensim.models.Word2Vec
-    if isinstance(embeddings_algorithm, str) and embeddings_algorithm.lower() == "fasttext":
-        embeddings_algorithm = gensim.models.FastText
-    if isinstance(embeddings_algorithm, str) and embeddings_algorithm.lower() == "glove":
-        embeddings_algorithm = Embeddings.glove_vectors
-    if isinstance(embeddings_algorithm, str) and embeddings_algorithm.lower() == "flair":
-        is_flair = True
-
-    umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
-    if isinstance(path, list):
-        data_sentences = DataHandler.concat_path_sentences(path)
-        # old:
-        # data_sentences = []
-        # for p in path:
-        #     data_sentences.extend(DataHandler.lines_from_file(path=p))
-    else:
-        data_sentences = DataHandler.lines_from_file(path=path)
-    if number_sentences:
-        data_sentences = data_sentences[:number_sentences]
-    print((data_sentences[:10]))
-
-
-    # cpg_words = lines_from_file(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-tokens.txt")
-
-    # Preprocessing
-    # cpg_words = umls_mapper.standardize_words(cpg_words)
-    # cpg_words = umls_mapper.replace_with_umls(cpg_words)
-    # cpg_words = preprocess(cpg_words)
-    # print((cpg_words[:100]))
-
-    # data_sentences = umls_mapper.standardize_documents(data_sentences)
-    # data_sentences = umls_mapper.replace_documents_with_umls(data_sentences)
-    # sents = [data_sentences[20124], data_sentences[20139]]
-    if umls_replacement:
-        if use_multiterm_replacement:
-            data_sentences = umls_mapper.replace_documents_with_spacy_multiterm(data_sentences)
-        else:
-            data_sentences = umls_mapper.replace_documents_token_based(data_sentences)
-        print(data_sentences[:10])
-    else:
-        data_sentences = umls_mapper.spacy_tokenize(data_sentences)
-        print(data_sentences[:10])
-    # for s in data_sentences:
-    #     print(s)
-    # data_sentences = umls_mapper.replace_documents_with_umls_smart(data_sentences)
-    # data_sentences = preprocess(documents=data_sentences, lemmatize=True, remove_stopwords=True)
-
-    # vecs = Embeddings.calculate_vectors([cpg_words], use_phrases=False)
-
-    if is_flair:
-        vecs = flair_embedding(data_sentences, flair_model_path, flair_corpus_path, 'de-forward')
-    else:
-        vecs = Embeddings.calculate_vectors(data_sentences,
-                                            use_phrases=use_phrases,
-                                            embedding_algorithm=embeddings_algorithm)
-
-    print(f'Got {len(vecs.vocab)} vectors for {len(data_sentences)} sentences')
-
-    Embeddings.save_medical(vecs, embedding_name, umls_mapper, restrict=restrict_vectors)
+from german_vec_pipeline.embeddings import Embeddings
+from german_vec_pipeline.transform_data import DataHandler
 
 
 def main():
@@ -207,13 +68,13 @@ def main():
     #                   embeddings_algorithm="word2vec")
 
     # German PubMed
-    # path = "E:/AML4DH-DATA/german_pubmed/all_sentences.txt"
-    # if not DataHandler.path_exists(path):
-    #     DataHandler.read_files_and_save_sentences_to_dir("E:\AML4DH-DATA\german_pubmed")
-    #
-    # sentence_data2vec(path=path,
-    #                   embedding_name="PubMed",
-    #                   embeddings_algorithm="word2vec")
+    path = "E:/AML4DH-DATA/german_pubmed/all_sentences.txt"
+    if not DataHandler.path_exists(path):
+        DataHandler.read_files_and_save_sentences_to_dir("E:\AML4DH-DATA\german_pubmed")
+
+    Embeddings.sentence_data2vec(path=path,
+                                 embedding_name="PubMed",
+                                 embeddings_algorithm="word2vec")
 
     # Medical Concat
     # paths = [
@@ -221,7 +82,7 @@ def main():
     #     "E:/AML4DH-DATA/JSynCC/jsynncc-sentences.txt",
     #     "E:/AML4DH-DATA/german_pubmed/all_sentences.txt"
     # ]
-    # sentence_data2vec(path=paths,
+    # Embeddings.sentence_data2vec(path=paths,
     #                   embedding_name="German_Medical",
     #                   embeddings_algorithm="word2vec",
     #                   restrict_vectors=True,
@@ -229,54 +90,54 @@ def main():
     #                   use_multiterm_replacement=True
     #                   )
     #
-    # sentence_data2vec(path=paths,
+    # Embeddings.sentence_data2vec(path=paths,
     #                   embedding_name="German_Medical_plain",
     #                   embeddings_algorithm="word2vec",
     #                   umls_replacement=True,
     #                   use_multiterm_replacement=False
     #                   )
     #
-    # sentence_data2vec(path=paths,
+    # Embeddings.sentence_data2vec(path=paths,
     #                   embedding_name="German_Medical_no_cui",
     #                   embeddings_algorithm="word2vec",
     #                   umls_replacement=False
     #                   )
 
-    # sentence_data2vec(path=paths,
+    # Embeddings.sentence_data2vec(path=paths,
     #                   embedding_name="German_Medical_fastText",
     #                   embeddings_algorithm="fastText",
     #                   umls_replacement=True,
     #                   use_multiterm_replacement=True
     #                   )
     #
-    # sentence_data2vec(path=paths,
+    # Embeddings.sentence_data2vec(path=paths,
     #                   embedding_name="German_Medical_fastText_plain",
     #                   embeddings_algorithm="fastText",
     #                   umls_replacement=True,
     #                   use_multiterm_replacement=False
     #                   )
     #
-    # sentence_data2vec(path=paths,
+    # Embeddings.sentence_data2vec(path=paths,
     #                   embedding_name="German_Medical_fastText_no_cui",
     #                   embeddings_algorithm="fastText",
     #                   umls_replacement=False
     #                   )
 
-    # sentence_data2vec(path=paths,
+    # Embeddings.sentence_data2vec(path=paths,
     #                   embedding_name="German_Medical_Glove",
     #                   embeddings_algorithm="Glove",
     #                   umls_replacement=True,
     #                   use_multiterm_replacement=True
     #                   )
     #
-    # sentence_data2vec(path=paths,
+    # Embeddings.sentence_data2vec(path=paths,
     #                   embedding_name="German_Medical_Glove_plain",
     #                   embeddings_algorithm="Glove",
     #                   umls_replacement=True,
     #                   use_multiterm_replacement=False
     #                   )
     #
-    # sentence_data2vec(path=paths,
+    # Embeddings.sentence_data2vec(path=paths,
     #                   embedding_name="German_Medical_Glove_no_cui",
     #                   embeddings_algorithm="Glove",
     #                   umls_replacement=False
@@ -287,23 +148,23 @@ def main():
     #     "E:/AML4DH-DATA/JSynCC/jsynncc-sentences_JULIE.txt",
     #     "E:/AML4DH-DATA/german_pubmed/all_sentences_JULIE.txt"
     # ]
-    # sentence_data2vec(path=paths,
+    # Embeddings.sentence_data2vec(path=paths,
     #                   embedding_name="German_Medical_JULIE",
     #                   embeddings_algorithm="word2vec",
     #                   umls_replacement=False
     #                   )
-    # sentence_data2vec(path=paths,
+    # Embeddings.sentence_data2vec(path=paths,
     #                   embedding_name="German_Medical_fastText_JULIE",
     #                   embeddings_algorithm="fastText",
     #                   umls_replacement=False
     #                   )
-    # sentence_data2vec(path=paths,
+    # Embeddings.sentence_data2vec(path=paths,
     #                   embedding_name="German_Medical_Glove_JULIE",
     #                   embeddings_algorithm="Glove",
     #                   umls_replacement=False
     #                   )
     # Flair
-    sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
+    Embeddings.sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
                       embedding_name="Flair",
                       embeddings_algorithm="Flair",
                       flair_corpus_path=None,
@@ -320,16 +181,16 @@ def main():
     # # cpg_words = lines_from_file(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-tokens.txt")
     #
     # # Preprocessing
-    # # cpg_words = umls_mapper.standardize_words(cpg_words)
-    # # cpg_words = umls_mapper.replace_with_umls(cpg_words)
-    # # cpg_words = preprocess(cpg_words)
-    # # print((cpg_words[:100]))
+    # cpg_words = umls_mapper.standardize_words(cpg_words)
+    # cpg_words = umls_mapper.replace_with_umls(cpg_words)
+    # cpg_words = DataHandler.preprocess(cpg_words)
+    # print((cpg_words[:100]))
     #
     # # data_sentences = umls_mapper.standardize_documents(data_sentences)
     # # data_sentences = umls_mapper.replace_documents_with_umls(data_sentences)
     # data_sentences = umls_mapper.replace_documents_with_spacy(data_sentences)
     # # data_sentences = umls_mapper.replace_documents_with_umls_smart(data_sentences)
-    # # data_sentences = preprocess(documents=data_sentences, lemmatize=True, remove_stopwords=True)
+    # # data_sentences = DataHandler.preprocess(documents=data_sentences, lemmatize=True, remove_stopwords=True)
     # print((data_sentences[:10]))
     #
     #

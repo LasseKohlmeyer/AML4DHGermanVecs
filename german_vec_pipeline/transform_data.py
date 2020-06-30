@@ -8,7 +8,6 @@ from tqdm import tqdm
 import pandas as pd
 
 
-
 class DataHandler:
     @staticmethod
     def path_exists(path: str) -> bool:
@@ -116,6 +115,65 @@ class DataHandler:
             # replaced_docs.append(tokens)
         # print(len(replaced_cuis), len(set(replaced_cuis)), replaced_cuis[:3])
         return replaced_docs
+
+    @staticmethod
+    def preprocess(tokens: List[str] = None, documents: List[List[str]] = None, lemmatize: bool = False,
+                   lower: bool = False, pos_filter: list = None, remove_stopwords: bool = False,
+                   remove_punctuation: bool = False, lan_model=None) -> List[List[str]]:
+        def token_representation(tok):
+            representation = str(tok.lemma_) if lemmatize else str(tok)
+            if lower:
+                representation = representation.lower()
+            return representation
+
+        nlp = spacy.load("de_core_news_sm") if lan_model is None else lan_model
+        nlp.Defaults.stop_words |= {"der", "die", "das", "Der", "Die", "Das", "bei", "Bei", "In", "in"}
+
+        if tokens:
+            for word in nlp.Defaults.stop_words:
+                lex = nlp.vocab[word]
+                lex.is_stop = True
+            preprocessed_tokens = []
+
+            if pos_filter is None:
+                for doc in nlp.pipe(tokens, disable=['parser', 'ner', 'tagger']):
+                    for token in doc:
+                        if (not remove_stopwords or not token.is_stop) and (not remove_punctuation or token.is_alpha):
+                            preprocessed_tokens.append(token_representation(token))
+
+            else:
+                for doc in nlp.pipe(tokens, disable=['parser', 'ner']):
+                    for token in doc:
+                        if (not remove_stopwords or not token.is_stop) and (
+                                not remove_punctuation or token.is_alpha) and token.pos_ in pos_filter:
+                            preprocessed_tokens.append(token_representation(token))
+            return [preprocessed_tokens]
+
+        if documents:
+            documents = [' '.join(doc) for doc in documents]
+            for word in nlp.Defaults.stop_words:
+                lex = nlp.vocab[word]
+                lex.is_stop = True
+            preprocessed_documents = []
+
+            if pos_filter is None:
+                for doc in nlp.pipe(documents, disable=['parser', 'ner', 'tagger']):
+                    preprocessed_document = []
+                    for token in doc:
+                        if (not remove_stopwords or not token.is_stop) and (not remove_punctuation or token.is_alpha):
+                            preprocessed_document.append(token_representation(token))
+                    preprocessed_documents.append(preprocessed_document)
+
+            else:
+                for doc in nlp.pipe(documents, disable=['parser', 'ner']):
+                    preprocessed_document = []
+                    for token in doc:
+                        if (not remove_stopwords or not token.is_stop) and (
+                                not remove_punctuation or token.is_alpha) and token.pos_ in pos_filter:
+                            preprocessed_document.append(token_representation(token))
+                    preprocessed_documents.append(preprocessed_document)
+
+            return preprocessed_documents
 
     @staticmethod
     def julielab_replacements(file_path, offset_path, new_path):

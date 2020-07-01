@@ -481,13 +481,13 @@ class Flair:
                     new_token_embedding = token.embedding.cpu()
                     if new_token_embedding.size() == cur.size():
                         keyed_vecs[token.text] = (cur + (new_token_embedding - cur) / (inc + 1), inc + 1)
-                    else:
-                        print(token.text, new_token_embedding)
                 else:
                     keyed_vecs[token.text] = (token.embedding.cpu(), 1)
             flair_sentence.clear_embeddings()
         keyed_vecs = {key: np.array(vecs[0]) for key, vecs in keyed_vecs.items()}
-        print(keyed_vecs)
+        for key, vec in keyed_vecs.items():
+            if len(vec) == 3072:
+                print(key, len(vec))
         return Embeddings.to_gensim_binary(keyed_vecs)
 
 # # sents = [" ".join(['C0850666', 'ist', 'der', 'wesentliche', 'Risikofaktor', 'für', 'das', 'C0699791', '.']),

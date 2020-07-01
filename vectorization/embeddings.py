@@ -17,8 +17,8 @@ from tqdm import tqdm
 
 from numpy import float32 as real
 from gensim import utils
-from ..resource.UMLS import UMLSMapper
-from ..utils.transform_data import DataHandler
+from resource.UMLS import UMLSMapper
+from utils.transform_data import DataHandler
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -406,7 +406,10 @@ class Flair:
             language_model = model.lm
 
         # are you fine-tuning a forward or backward LM?
-        is_forward_lm = language_model.is_forward_lm
+        try:
+            is_forward_lm = language_model.is_forward_lm
+        except AttributeError:
+            is_forward_lm = True
 
         # get the dictionary from the existing language model
         dictionary: Dictionary = language_model.dictionary

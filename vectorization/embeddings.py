@@ -17,8 +17,8 @@ from tqdm import tqdm
 
 from numpy import float32 as real
 from gensim import utils
-from resource.UMLS import UMLSMapper
-from utils.transform_data import DataHandler
+from ..resource.UMLS import UMLSMapper
+from ..utils.transform_data import DataHandler
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 

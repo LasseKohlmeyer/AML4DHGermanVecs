@@ -24,15 +24,22 @@ def main():
         Embedding(Embeddings.load(path="data/German_Medical.kv"), "GerVec", "word2vec", "multi-term"),
 
         # # Flair
-        Embedding(Embeddings.assign_concepts_to_vecs(Embeddings.load(path="data/Flair_all.kv"), umls_mapper),
-                  "Ger", "Flair", "Se CUI"),
+        Embedding(Embeddings.assign_concepts_to_vecs(Embeddings.load(path="data/GGPONC__flair_no_cui_all.kv"),
+                                                     umls_mapper),
+                                                    "GGPONC", "Flair", "SE CUI"),
+        Embedding(Embeddings.assign_concepts_to_vecs(Embeddings.load(path="data/German_Medical_flair_no_cui_all.kv"),
+                                                     umls_mapper),
+                  "GerVec", "Flair", "SE CUI"),
+
+        Embedding(Embeddings.load(path="data/German_Medical_flair_JULIE_all.kv"),
+                  "GerVec", "Flair", "JULIE"),
 
         # # GGPONC
         Embedding(Embeddings.load(path="data/no_prep_vecs_test_all.kv"), "GGPONC", "word2vec", "multi-term"),
         # Embedding(Embeddings.load(path="data/GGPONC_plain_all.kv"), "GGPONC", "word2vec", "single-term"),
         # Embedding(Embeddings.load(path="data/GGPONC_JULIE_all.kv"), "GGPONC", "word2vec", "JULIE"),
-        # Embedding(Embeddings.assign_concepts_to_vecs(Embeddings.load(path="data/GGPONC_no_cui_all.kv"), umls_mapper),
-        #           "GGPONC", "word2vec", "SE CUI"),
+        Embedding(Embeddings.assign_concepts_to_vecs(Embeddings.load(path="data/GGPONC_no_cui_all.kv"), umls_mapper),
+                  "GGPONC", "word2vec", "SE CUI"),
         # Embedding(Embeddings.load(path="data/GGPONC_fastText_all.kv"), "GGPONC", "fastText", "multi-term"),
         # Embedding(Embeddings.load(path="data/GGPONC_glove_all.kv"), "GGPONC", "Glove", "multi-term"),
         # # Pretrained
@@ -91,20 +98,20 @@ def main():
     benchmarks_to_use = [
         HumanAssessment,
         # CategoryBenchmark,
-        # CausalityBeam,
-        # NDFRTBeam,
+        # SilhouetteCoefficient,
+        CausalityBeam,
+        NDFRTBeam,
         SemanticTypeBeam,
         AssociationBeam,
-        # # SilhouetteCoefficient,
-        # ConceptualSimilarityChoi,
+        ConceptualSimilarityChoi,
         # MedicalRelatednessMayTreatChoi,
         # MedicalRelatednessMayPreventChoi
     ]
 
-    evaluation = Evaluation(embeddings_to_benchmark,
-                            umls_mapper,
-                            evaluators,
-                            benchmarks_to_use)
+    Evaluation(embeddings_to_benchmark,
+               umls_mapper,
+               evaluators,
+               benchmarks_to_use)
 
     # benchmark.category_benchmark("Nucleotide Sequence")
     # emb = EmbeddingSet({umls_mapper.un_umls(c, single_return=True):

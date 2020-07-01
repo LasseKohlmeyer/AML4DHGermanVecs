@@ -13,8 +13,8 @@ from scipy.stats.mstats import spearmanr
 from tqdm import tqdm
 
 from benchmarking import constant
-from ..resource.UMLS import UMLSMapper, UMLSEvaluator, MRRELEvaluator
-from ..resource.other_resources import NDFEvaluator, SRSEvaluator, Evaluator
+from resource.UMLS import UMLSMapper, UMLSEvaluator, MRRELEvaluator
+from resource.other_resources import NDFEvaluator, SRSEvaluator, Evaluator
 from joblib import Parallel, delayed
 import multiprocessing
 

@@ -4,25 +4,27 @@ from typing import Tuple, List
 import gensim
 
 from resource.UMLS import UMLSMapper
-from .benchmarks import Benchmark
-from ..resource.other_resources import Evaluator
+from benchmarking.benchmarks import Benchmark
+from resource.other_resources import Evaluator
 
 import pandas as pd
+import numpy as np
 
 
 class Evaluation:
     def __init__(self, embeddings: List[Tuple[gensim.models.KeyedVectors, str, str, str]],
                  umls_mapper: UMLSMapper,
                  evaluators: List[Evaluator],
-                 benchmark_classes=List[Benchmark]):
+                 benchmark_classes=List[Benchmark],
+                 extend: bool = False):
 
         self.benchmarks = [benchmark(embedding, umls_mapper, evaluators)
                            for embedding in embeddings
                            for benchmark in benchmark_classes]
 
-        self.evaluate()
+        self.evaluate(extend=extend)
 
-    def evaluate(self):
+    def evaluate(self, extend: bool = False):
         tuples = []
         for benchmark in self.benchmarks:
             # print(benchmark.__class__.__name__, benchmark.dataset, benchmark.algorithm)
@@ -64,6 +66,22 @@ class Evaluation:
                                             if i % number_benchmarks == 0]
 
         df_table = pd.DataFrame.from_dict(used_benchmarks_dict)
-
-        print(df_table)
         df_table.to_csv('data/benchmark_results2.csv', index=False, encoding="utf-8")
+        print(df_table)
+        # old_df = pd.read_csv('data/benchmark_results2.csv')
+        # missing_columns_in_new = None
+        # if old_df.columns != df_table.columns:
+        #     missing_columns_in_old = df_table.columns.difference(old_df.columns)
+        #     for column in missing_columns_in_old:
+        #         old_df[column] = np.nan
+        #     missing_columns_in_new = old_df.columns.difference(df_table.columns)
+        # for i, row in df_table.iterrows():
+        #     if old_df[(old_df["Data set"] == row["Data set"]) & (old_df["Algorithm"] == row["Algorithm"]) & (old_df["Preprocessing"] == row["Preprocessing"])].empty:
+        #         if missing_columns_in_new:
+        #             for column in missing_columns_in_new:
+        #                 row[column] = np.nan
+        #         old_df.append(row)
+
+        # concat_df = pd.concat([old_df, df_table], ignore_index=True)
+        # print(concat_df)
+

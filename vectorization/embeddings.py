@@ -411,6 +411,7 @@ class Flair:
         except AttributeError:
             is_forward_lm = True
 
+        # todo: no support for finetuning BERT with Flair Library for now
         # get the dictionary from the existing language model
         dictionary: Dictionary = language_model.dictionary
 
@@ -477,7 +478,9 @@ class Flair:
             for token in flair_sentence:
                 if token.text in keyed_vecs:
                     cur, inc = keyed_vecs[token.text]
-                    keyed_vecs[token.text] = (cur + (token.embedding.cpu() - cur) / (inc + 1), inc + 1)
+                    new_token = token.embedding.cpu()
+                    if new_token.size() != cur.size():
+                        keyed_vecs[token.text] = (cur + (new_token - cur) / (inc + 1), inc + 1)
                 else:
                     keyed_vecs[token.text] = (token.embedding.cpu(), 1)
             flair_sentence.clear_embeddings()

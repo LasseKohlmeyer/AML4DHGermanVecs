@@ -485,6 +485,7 @@ class Flair:
                     keyed_vecs[token.text] = (token.embedding.cpu(), 1)
             flair_sentence.clear_embeddings()
         keyed_vecs = {key: np.array(vecs[0]) for key, vecs in keyed_vecs.items()}
+        keyed_vecs = {key: vecs for key, vecs in keyed_vecs.items() if len(vecs) != 0}
         for key, vec in keyed_vecs.items():
             if len(vec) != 3072:
                 print(key, len(vec))

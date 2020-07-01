@@ -478,9 +478,11 @@ class Flair:
             for token in flair_sentence:
                 if token.text in keyed_vecs:
                     cur, inc = keyed_vecs[token.text]
-                    new_token = token.embedding.cpu()
-                    if new_token.size() == cur.size():
-                        keyed_vecs[token.text] = (cur + (new_token - cur) / (inc + 1), inc + 1)
+                    new_token_embedding = token.embedding.cpu()
+                    if new_token_embedding.size() == cur.size():
+                        keyed_vecs[token.text] = (cur + (new_token_embedding - cur) / (inc + 1), inc + 1)
+                    else:
+                        print(token.text, new_token_embedding)
                 else:
                     keyed_vecs[token.text] = (token.embedding.cpu(), 1)
             flair_sentence.clear_embeddings()

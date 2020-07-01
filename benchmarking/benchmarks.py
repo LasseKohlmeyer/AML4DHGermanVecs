@@ -697,6 +697,7 @@ class SemanticTypeBeam(AbstractBeamBenchmark):
     def calculate_power(self):
         total_positives = 0
         total_observed_scores = 0
+        total_observed_scores_strict = 0
         # categories = self.umls_evaluator.category2concepts.keys()
         categories = ['Pharmacologic Substance',
                       'Disease or Syndrome',
@@ -712,6 +713,7 @@ class SemanticTypeBeam(AbstractBeamBenchmark):
         for category in tqdm_bar:
             same_type_concepts = [concept for concept in self.umls_evaluator.category2concepts[category]
                                   if concept in self.vocab]
+            total_observed_scores_strict += len(self.umls_evaluator.category2concepts[category])-len(same_type_concepts)
             other_type_concepts = list(all_concepts.difference(same_type_concepts))
 
             if len(same_type_concepts) == 0 or len(other_type_concepts) == 0:
@@ -735,12 +737,13 @@ class SemanticTypeBeam(AbstractBeamBenchmark):
 
             total_positives += num_positives
             total_observed_scores += num_observed_scores
+            total_observed_scores_strict += num_observed_scores
             tqdm_bar.set_description(f"Semantic Type Beam ({self.dataset}|{self.algorithm}|{self.preprocessing}): "
                                      f"{sig_threshold:.4f} threshold, "
                                      f"{(total_positives / total_observed_scores):.4f} score")
             tqdm_bar.update()
 
-        return total_positives / total_observed_scores
+        return total_positives / total_observed_scores, total_positives / total_observed_scores_strict
 
 
 class NDFRTBeam(AbstractBeamBenchmark):
@@ -767,20 +770,21 @@ class NDFRTBeam(AbstractBeamBenchmark):
     def calculate_power(self):
         total_positives = 0
         total_observed_scores = 0
+        total_observed_scores_strict = 0
         treatment_conditions = []
         for treatment, conditions in self.ndf_evaluator.may_prevent.items():
             for condition in conditions:
                 if treatment in self.vocab and condition in self.vocab:
                     treatment_conditions.append((treatment, condition))
                 else:
-                    total_observed_scores += 1
+                    total_observed_scores_strict += 1
 
         for treatment, conditions in self.ndf_evaluator.may_treat.items():
             for condition in conditions:
                 if treatment in self.vocab and condition in self.vocab:
                     treatment_conditions.append((treatment, condition))
                 else:
-                    total_observed_scores += 1
+                    total_observed_scores_strict += 1
 
         tqdm_bar = tqdm(treatment_conditions, total=len(treatment_conditions))
         for treatment_condition in tqdm_bar:
@@ -811,12 +815,13 @@ class NDFRTBeam(AbstractBeamBenchmark):
 
             total_positives += num_positives
             total_observed_scores += num_observed_scores
+            total_observed_scores_strict += num_observed_scores
             tqdm_bar.set_description(f"NDFRT Beam ({self.dataset}|{self.algorithm}|{self.preprocessing}): "
                                      f"{sig_threshold:.4f} threshold, "
                                      f"{(total_positives / total_observed_scores):.4f} score")
             tqdm_bar.update()
 
-        return total_positives / total_observed_scores
+        return total_positives / total_observed_scores, total_positives / total_observed_scores_strict
 
 
 class CausalityBeam(AbstractBeamBenchmark):
@@ -843,13 +848,14 @@ class CausalityBeam(AbstractBeamBenchmark):
     def calculate_power(self):
         total_positives = 0
         total_observed_scores = 0
+        total_observed_scores_strict = 0
         causative_relations = []
         for cause, effects in self.mrrelevaluator.mrrel_cause.items():
             for effect in effects:
                 if cause in self.vocab and effect in self.vocab:
                     causative_relations.append((cause, effect))
-                # else:
-                #     total_observed_scores += 1
+                else:
+                    total_observed_scores_strict += 1
 
         tqdm_bar = tqdm(causative_relations, total=len(causative_relations))
         for treatment_condition in tqdm_bar:
@@ -880,6 +886,7 @@ class CausalityBeam(AbstractBeamBenchmark):
 
             total_positives += num_positives
             total_observed_scores += num_observed_scores
+            total_observed_scores_strict += num_observed_scores
             tqdm_bar.set_description(f"Causality Beam ({self.dataset}|{self.algorithm}|{self.preprocessing}): "
                                      f"{sig_threshold:.4f} threshold, "
                                      f"{(total_positives / total_observed_scores):.4f} score")
@@ -887,7 +894,7 @@ class CausalityBeam(AbstractBeamBenchmark):
 
         if total_observed_scores == 0:
             return 0
-        return total_positives / total_observed_scores
+        return total_positives / total_observed_scores, total_positives / total_observed_scores_strict
 
 
 class AssociationBeam(AbstractBeamBenchmark):
@@ -914,13 +921,14 @@ class AssociationBeam(AbstractBeamBenchmark):
     def calculate_power(self):
         total_positives = 0
         total_observed_scores = 0
+        total_observed_scores_strict = 0
         associated_relations = []
         for concept, associated_concepts in self.mrrelevaluator.mrrel_association.items():
             for associated_concept in associated_concepts:
                 if concept in self.vocab and associated_concept in self.vocab:
                     associated_relations.append((concept, associated_concept))
-                # else:
-                #     total_observed_scores += 1
+                else:
+                    total_observed_scores_strict += 1
 
         tqdm_bar = tqdm(associated_relations, total=len(associated_relations))
         for treatment_condition in tqdm_bar:
@@ -951,6 +959,7 @@ class AssociationBeam(AbstractBeamBenchmark):
 
             total_positives += num_positives
             total_observed_scores += num_observed_scores
+            total_observed_scores_strict += num_observed_scores
             tqdm_bar.set_description(f"Association Beam ({self.dataset}|{self.algorithm}|{self.preprocessing}): "
                                      f"{sig_threshold:.4f} threshold, "
                                      f"{(total_positives / total_observed_scores):.4f} score")
@@ -958,4 +967,4 @@ class AssociationBeam(AbstractBeamBenchmark):
 
         if total_observed_scores == 0:
             return 0
-        return total_positives / total_observed_scores
+        return total_positives / total_observed_scores, total_positives / total_observed_scores_strict

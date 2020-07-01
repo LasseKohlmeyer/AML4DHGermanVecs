@@ -17,8 +17,8 @@ from tqdm import tqdm
 
 from numpy import float32 as real
 from gensim import utils
-from ..resource.UMLS import UMLSMapper
-from ..utils.transform_data import DataHandler
+from resource.UMLS import UMLSMapper
+from utils.transform_data import DataHandler
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -479,12 +479,14 @@ class Flair:
                 if token.text in keyed_vecs:
                     cur, inc = keyed_vecs[token.text]
                     new_token_embedding = token.embedding.cpu()
+                    print(len(np.array(new_token_embedding)))
                     if new_token_embedding.size() == cur.size():
                         keyed_vecs[token.text] = (cur + (new_token_embedding - cur) / (inc + 1), inc + 1)
                 else:
                     keyed_vecs[token.text] = (token.embedding.cpu(), 1)
             flair_sentence.clear_embeddings()
         keyed_vecs = {key: np.array(vecs[0]) for key, vecs in keyed_vecs.items()}
+        keyed_vecs = {key: vecs for key, vecs in keyed_vecs.items() if len(vecs) != 0}
         for key, vec in keyed_vecs.items():
             if len(vec) != 3072:
                 print(key, len(vec))

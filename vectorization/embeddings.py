@@ -479,7 +479,7 @@ class Flair:
                 if token.text in keyed_vecs:
                     cur, inc = keyed_vecs[token.text]
                     new_token = token.embedding.cpu()
-                    if new_token.size() != cur.size():
+                    if new_token.size() == cur.size():
                         keyed_vecs[token.text] = (cur + (new_token - cur) / (inc + 1), inc + 1)
                 else:
                     keyed_vecs[token.text] = (token.embedding.cpu(), 1)

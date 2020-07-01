@@ -486,7 +486,7 @@ class Flair:
             flair_sentence.clear_embeddings()
         keyed_vecs = {key: np.array(vecs[0]) for key, vecs in keyed_vecs.items()}
         for key, vec in keyed_vecs.items():
-            if len(vec) == 3072:
+            if len(vec) != 3072:
                 print(key, len(vec))
         return Embeddings.to_gensim_binary(keyed_vecs)
 

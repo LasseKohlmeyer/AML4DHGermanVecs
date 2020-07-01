@@ -485,7 +485,7 @@ class Flair:
                     keyed_vecs[token.text] = (token.embedding.cpu(), 1)
             flair_sentence.clear_embeddings()
         keyed_vecs = {key: np.array(vecs[0]) for key, vecs in keyed_vecs.items()}
-
+        print(keyed_vecs)
         return Embeddings.to_gensim_binary(keyed_vecs)
 
 # # sents = [" ".join(['C0850666', 'ist', 'der', 'wesentliche', 'Risikofaktor', 'für', 'das', 'C0699791', '.']),

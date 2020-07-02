@@ -476,9 +476,10 @@ class Flair:
 
         keyed_vecs = {}
         for flair_sentence in tqdm(flair_sents, desc='Embed sentences', total=len(flair_sents)):
-            if len(flair_sentence) == 1:
+            try:
+                embedding.embed(flair_sentence)
+            except IndexError:
                 continue
-            embedding.embed(flair_sentence)
             for token in flair_sentence:
                 if token.text in keyed_vecs:
                     cur, inc = keyed_vecs[token.text]

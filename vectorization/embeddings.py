@@ -463,7 +463,9 @@ class Flair:
                        for raw_sentence in tqdm(raw_sentences,
                                                 desc="Convert to flair",
                                                 total=len(raw_sentences))
-                       if raw_sentence != '' and len(raw_sentence)>0]
+                       if raw_sentence != '' and len(raw_sentence) > 0]
+
+        flair_sents = [flair_sent for flair_sent in flair_sents if flair_sent and len(flair_sent) > 0]
 
         # keyed_vecs_o = defaultdict(list)
         # for flair_sentence in tqdm(flair_sents, desc='Embed sentences', total=len(flair_sents)):

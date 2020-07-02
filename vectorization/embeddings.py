@@ -343,7 +343,9 @@ class Embeddings:
         # vecs = Embeddings.calculate_vectors([cpg_words], use_phrases=False)
 
         if is_flair:
-            vecs = Flair.get_flair_vectors(data_sentences, flair_model_path, flair_corpus_path, 'de-forward')
+            vecs = Flair.get_flair_vectors(data_sentences, flair_model_path,
+                                           flair_algorithm='de-forward',
+                                           retrain_corpus_path=flair_corpus_path)
         else:
             vecs = Embeddings.calculate_vectors(data_sentences,
                                                 use_phrases=use_phrases,

@@ -287,6 +287,7 @@ class Embeddings:
                           use_phrases: bool = False,
                           restrict_vectors: bool = False,
                           umls_replacement: bool = True,
+                          umls_path: str = 'E:/AML4DH-DATA/UMLS',
                           use_multiterm_replacement: bool = True,
                           flair_model_path: str = None,
                           flair_corpus_path: str = None,
@@ -301,7 +302,7 @@ class Embeddings:
         if isinstance(embeddings_algorithm, str) and embeddings_algorithm.lower() == "flair":
             is_flair = True
 
-        umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
+        umls_mapper = UMLSMapper(from_dir=umls_path)
         if isinstance(path, list):
             data_sentences = DataHandler.concat_path_sentences(path)
             # old:

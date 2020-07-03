@@ -394,8 +394,11 @@ class Flair:
             os.mkdir(os.path.join(root_path, 'train'))
         except OSError:
             print("Creation of the directory %s failed" % root_path)
-
+        # print(root_path)
         for j, split in enumerate(train_splits):
+            # if isinstance(split[0], list):
+            #     split = [' '.join(sents) for sents in split]
+            #     print(split)
             DataHandler.save(os.path.join(root_path, 'train', f'train_split_{j}.txt'), '\n'.join(split))
         DataHandler.save(os.path.join(root_path, 'valid.txt'), '\n'.join(val_sentences))
         DataHandler.save(os.path.join(root_path, 'test.txt'), '\n'.join(test_sentences))
@@ -500,9 +503,9 @@ class Flair:
             flair_sentence.clear_embeddings()
         keyed_vecs = {key: np.array(vecs[0]) for key, vecs in keyed_vecs.items()}
         keyed_vecs = {key: vecs for key, vecs in keyed_vecs.items() if len(vecs) != 0}
-        for key, vec in keyed_vecs.items():
-            if len(vec) != 3072:
-                print(key, len(vec))
+        # for key, vec in keyed_vecs.items():
+        #     if len(vec) != 3072:
+        #         print(key, len(vec))
         return Embeddings.to_gensim_binary(keyed_vecs)
 
 # # sents = [" ".join(['C0850666', 'ist', 'der', 'wesentliche', 'Risikofaktor', 'für', 'das', 'C0699791', '.']),

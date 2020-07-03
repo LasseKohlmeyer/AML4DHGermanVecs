@@ -291,6 +291,7 @@ class Embeddings:
                           use_multiterm_replacement: bool = True,
                           flair_model_path: str = None,
                           flair_corpus_path: str = None,
+                          flair_algorithm: str = 'de-forward'
                           ):
         is_flair = False
         if isinstance(embeddings_algorithm, str) and embeddings_algorithm.lower() == "word2vec":
@@ -326,11 +327,14 @@ class Embeddings:
         # data_sentences = umls_mapper.standardize_documents(data_sentences)
         # data_sentences = umls_mapper.replace_documents_with_umls(data_sentences)
         # sents = [data_sentences[20124], data_sentences[20139]]
+        tokenize = True
+        if flair_model_path:
+            tokenize = False
         if umls_replacement:
             if use_multiterm_replacement:
-                data_sentences = umls_mapper.replace_documents_with_spacy_multiterm(data_sentences)
+                data_sentences = umls_mapper.replace_documents_with_spacy_multiterm(data_sentences, tokenize=tokenize)
             else:
-                data_sentences = umls_mapper.replace_documents_token_based(data_sentences)
+                data_sentences = umls_mapper.replace_documents_token_based(data_sentences, tokenize=tokenize)
             print(data_sentences[:10])
         else:
             data_sentences = umls_mapper.spacy_tokenize(data_sentences)
@@ -343,8 +347,9 @@ class Embeddings:
         # vecs = Embeddings.calculate_vectors([cpg_words], use_phrases=False)
 
         if is_flair:
-            vecs = Flair.get_flair_vectors(data_sentences, flair_model_path,
-                                           flair_algorithm='de-forward',
+            vecs = Flair.get_flair_vectors(data_sentences,
+                                           flair_model_path=flair_model_path,
+                                           flair_algorithm=flair_algorithm,
                                            retrain_corpus_path=flair_corpus_path)
         else:
             vecs = Embeddings.calculate_vectors(data_sentences,

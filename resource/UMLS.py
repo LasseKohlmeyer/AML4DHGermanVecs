@@ -1,6 +1,6 @@
 import os
 from collections import defaultdict
-from typing import Iterable, List, Dict
+from typing import Iterable, List, Dict, Union
 import json
 import gensim
 from simstring.database.dict import DictDatabase
@@ -144,10 +144,16 @@ class UMLSMapper:
     def replace_with_umls(self, tokens: List[str], delete_non_umls=False) -> List[str]:
         return [self.umls_code(token, delete_non_umls) for token in tokens if self.umls_code(token, delete_non_umls)]
 
-    def replace_documents_token_based(self, documents: List[str], delete_non_umls=False) -> List[List[str]]:
+    def replace_documents_token_based(self, documents: List[str], delete_non_umls=False, tokenize: bool = True) \
+            -> Union[List[List[str]], List[str]]:
         tokenized_documents = [sentence.split() for sentence in documents]
-        return [[self.umls_code(token, delete_non_umls) for token in tokens if self.umls_code(token, delete_non_umls)]
-                for tokens in tokenized_documents]
+        if tokenize:
+            return [[self.umls_code(token, delete_non_umls) for token in tokens if self.umls_code(token, delete_non_umls)]
+                    for tokens in tokenized_documents]
+        else:
+            return [' '.join([self.umls_code(token, delete_non_umls)
+                              for token in tokens if self.umls_code(token, delete_non_umls)])
+                    for tokens in tokenized_documents]
 
     def spacy_tokenize(self, documents: List["str"], nlp=None) -> List[List[str]]:
         if nlp is None:
@@ -156,7 +162,7 @@ class UMLSMapper:
         tokenized_docs = [[token.text for token in doc] for doc in tqdm(doc_pipe, desc="Tokenize", total=len(documents))]
         return tokenized_docs
 
-    def replace_documents_with_spacy_multiterm(self, documents: List[str]) -> List[List[str]]:
+    def replace_documents_with_spacy_multiterm(self, documents: List[str], tokenize: bool = True) -> List[List[str]]:
         nlp = spacy.load('de_core_news_sm')
         matcher = PhraseMatcher(nlp.vocab)
         terms = self.umls_dict.keys()
@@ -182,7 +188,8 @@ class UMLSMapper:
 
             # tokens = [token for token in text_doc.split()]
             # replaced_docs.append(tokens)
-        replaced_docs = self.spacy_tokenize(replaced_docs, nlp)
+        if tokenize:
+            replaced_docs = self.spacy_tokenize(replaced_docs, nlp)
         # doc_pipe = list(nlp.pipe(replaced_docs, disable=["tagger", "parser", "ner"]))
         # replaced_docs = [[token.text for token in doc] for doc in tqdm(doc_pipe, desc="Tokenize", total=len(documents))]
 

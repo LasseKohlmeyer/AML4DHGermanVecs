@@ -3,7 +3,6 @@ from collections import defaultdict
 from multiprocessing.spawn import freeze_support
 from typing import List, Dict, Union
 import gensim
-import torch
 from flair.data import Dictionary, Sentence
 from flair.embeddings import TransformerWordEmbeddings, FlairEmbeddings
 from flair.trainers.language_model_trainer import TextCorpus, LanguageModelTrainer
@@ -236,12 +235,12 @@ class Embeddings:
 
     @staticmethod
     def save_medical(word_vectors: gensim.models.KeyedVectors, name: str, umls_mapping, restrict=True):
-        Embeddings.save(word_vectors, path=f"E:/AML4DHGermanVecs/data/{name}_all.kv")
+        Embeddings.save(word_vectors, path=f"data/{name}_all.kv")
         print(f'saved {name} vectors')
         if restrict:
             concept_vecs = umls_mapping.get_umls_vectors_only(word_vectors)
             Embeddings.restrict_vectors(word_vectors, concept_vecs.keys())
-            Embeddings.save(word_vectors, path=f"E:/AML4DHGermanVecs/data/{name}.kv")
+            Embeddings.save(word_vectors, path=f"data/{name}.kv")
             print(f'Restricted to {len(word_vectors.vocab)} vectors')
 
     @staticmethod

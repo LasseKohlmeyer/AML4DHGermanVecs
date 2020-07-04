@@ -2,7 +2,7 @@ import os
 
 from benchmarking.benchmarks import *
 from utils.transform_data import ConfigLoader
-from vectorization.embeddings import Embeddings
+from vectorization.embeddings import Embeddings, Embedding
 from benchmarking.evaluation import Evaluation
 from resource.other_resources import NDFEvaluator, SRSEvaluator
 from collections import namedtuple

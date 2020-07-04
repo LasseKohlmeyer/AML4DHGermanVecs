@@ -60,7 +60,7 @@ class DataHandler:
                 files.remove(f)
 
         docs = []
-        for file in tqdm(files, desc=f"load documents in {directory}", total=len(files)):
+        for file in tqdm(files, desc=f"load_keyed_vecs documents in {directory}", total=len(files)):
             docs.append(" ".join(DataHandler.lines_from_file(os.path.join(directory, file), encoding=None)).strip())
         return " ".join(docs)
 

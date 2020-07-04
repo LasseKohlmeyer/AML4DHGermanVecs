@@ -3,45 +3,60 @@ from typing import Tuple, List
 
 import gensim
 
-from ..resource.UMLS import UMLSMapper
-from .benchmarks import Benchmark
-from ..resource.other_resources import Evaluator
-
+from resource.UMLS import UMLSMapper
+from benchmarking.benchmarks import Benchmark
+from resource.other_resources import Evaluator
+import gc
 import pandas as pd
 import numpy as np
 
+from vectorization.embeddings import Embedding
+
 
 class Evaluation:
-    def __init__(self, embeddings: List[Tuple[gensim.models.KeyedVectors, str, str, str]],
+    def __init__(self, embeddings: List[Embedding],
                  umls_mapper: UMLSMapper,
                  evaluators: List[Evaluator],
                  benchmark_classes=List[Benchmark],
                  extend: bool = False):
+        self.benchmark_classes = benchmark_classes
+        self.embeddings = embeddings
+        self.evaluators = evaluators
+        self.umls_mapper = umls_mapper
+        #
+        # self.benchmarks = [benchmark(embedding, umls_mapper, evaluators)
+        #                    for embedding in embeddings
+        #                    for benchmark in benchmark_classes]
 
-        self.benchmarks = [benchmark(embedding, umls_mapper, evaluators)
-                           for embedding in embeddings
-                           for benchmark in benchmark_classes]
+        self.evaluate()
 
-        self.evaluate(extend=extend)
-
-    def evaluate(self, extend: bool = False):
+    def evaluate(self):
         tuples = []
-        for benchmark in self.benchmarks:
-            # print(benchmark.__class__.__name__, benchmark.dataset, benchmark.algorithm)
-            score = benchmark.evaluate()
-            german_cuis = set(benchmark.umls_mapper.umls_reverse_dict.keys())
-            vocab_terms = set(benchmark.vocab.keys())
-            actual_umls_terms = german_cuis.intersection(vocab_terms)
-            nr_german_cuis = len(german_cuis)
-            nr_vectors = len(vocab_terms)
-            nr_concepts = len(actual_umls_terms)
+        for embedding in self.embeddings:
+            embedding.load()
+            # vec_generator, dataset, algorithm, preprocessing = embedding
+            # for vecs in vec_generator:
+            for benchmark_class in self.benchmark_classes:
+                benchmark = benchmark_class(embedding, self.umls_mapper, self.evaluators)
+                score = benchmark.evaluate()
 
-            cui_cov = nr_concepts / nr_vectors   # ratio of found umls terms vs all vocab entries
-            umls_cov = nr_concepts / nr_german_cuis  # ratio of found umls terms vs total UMLS terms
-            # umls_cov = nr_concepts / len(benchmark.umls_mapper.umls_dict.keys())
+                german_cuis = set(benchmark.umls_mapper.umls_reverse_dict.keys())
+                vocab_terms = set(benchmark.vocab.keys())
+                actual_umls_terms = german_cuis.intersection(vocab_terms)
+                nr_german_cuis = len(german_cuis)
+                nr_vectors = len(vocab_terms)
+                nr_concepts = len(actual_umls_terms)
 
-            tuples.append((benchmark.dataset, benchmark.algorithm, benchmark.preprocessing, score,
-                           nr_concepts, nr_vectors, cui_cov, umls_cov, benchmark.__class__.__name__, ))
+                cui_cov = nr_concepts / nr_vectors  # ratio of found umls terms vs all vocab entries
+                umls_cov = nr_concepts / nr_german_cuis  # ratio of found umls terms vs total UMLS terms
+                # umls_cov = nr_concepts / len(benchmark.umls_mapper.umls_dict.keys())
+
+                tuples.append((benchmark.dataset, benchmark.algorithm, benchmark.preprocessing, score,
+                               nr_concepts, nr_vectors, cui_cov, umls_cov, benchmark.__class__.__name__,))
+                benchmark.clean()
+                del benchmark
+            embedding.clean()
+            del embedding
 
         df = pd.DataFrame(tuples, columns=['Data set', 'Algorithm', 'Preprocessing', 'Score', '# Concepts',
                                            '# Words', 'CUI Coverage', 'UMLS Coverage', 'Benchmark'])

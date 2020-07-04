@@ -1,3 +1,4 @@
+import json
 import os
 from collections import defaultdict, Counter
 from typing import List, Dict
@@ -6,6 +7,26 @@ import spacy
 from spacy.matcher.phrasematcher import PhraseMatcher
 from tqdm import tqdm
 import pandas as pd
+
+
+class ConfigLoader:
+    @staticmethod
+    def get_config(relative_path=""):
+
+        path = os.path.join(relative_path, "config.json")
+        if os.path.exists(path):
+            print('importing config from config.json ...')
+            with open(path) as json_file:
+                return json.load(json_file)
+
+        path = os.path.join(relative_path, "default.config.json")
+        if os.path.exists(path):
+            path = os.path.join(relative_path, "default.config.json")
+            print('importing config from default.config.json ...')
+            with open(path) as json_file:
+                return json.load(json_file)
+
+        raise Exception("config file missing!")
 
 
 class DataHandler:

@@ -254,7 +254,7 @@ class MRRELEvaluator(Evaluator):
 
         mrrel_association = defaultdict(list)
 
-        for i, row in tqdm(df_cause.iterrows(), total=len(df_association), desc="Find association data"):
+        for i, row in tqdm(df_association.iterrows(), total=len(df_association), desc="Find association data"):
             mrrel_association[row["CUI1"]].append(row["CUI2"])
 
         return mrrel_cause, mrrel_association

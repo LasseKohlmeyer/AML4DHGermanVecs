@@ -1,0 +1,12 @@
+{
+  "PATH": {
+      "UMLS": "E:/AML4DH-DATA/UMLS",
+      "NDF": "E:/AML4DH-DATA/NDF",
+      "SRS": "E:/AML4DH-DATA/SRS",
+      "ExternalEmbeddings": "E:/AML4DH-DATA/",
+      "GGPONC": "E:/AML4DH-DATA/CPG-AMIA2020",
+      "JSynnCC": "E:/AML4DH-DATA/JSynCC",
+      "PubMed": "E:/AML4DH-DATA/german_pubmed",
+      "News": "E:/AML4DH-DATA/2015_3M_sentences/"
+  }
+}

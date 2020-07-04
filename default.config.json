@@ -1,0 +1,12 @@
+{
+  "PATH": {
+      "UMLS": "path/to/UMLS",
+      "NDF": "path/to/NDF",
+      "SRS": "path/to/SRS",
+      "ExternalEmbeddings": "path/to/external/data",
+      "GGPONC": "path/to/GGPONC",
+      "JSynnCC": "path/to/JSynnCC",
+      "PubMed": "path/to/german_pubmed",
+      "News": "path/to//2015_3M_sentences/"
+  }
+}

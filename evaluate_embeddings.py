@@ -1,4 +1,7 @@
+import os
+
 from benchmarking.benchmarks import *
+from utils.transform_data import ConfigLoader
 from vectorization.embeddings import Embeddings
 from benchmarking.evaluation import Evaluation
 from resource.other_resources import NDFEvaluator, SRSEvaluator
@@ -6,7 +9,9 @@ from collections import namedtuple
 
 
 def main():
-    umls_mapper = UMLSMapper(from_dir='E:/AML4DH-DATA/UMLS')
+    config = ConfigLoader.get_config()
+
+    umls_mapper = UMLSMapper(from_dir=config["path"]["UMLS"])
     Embedding = namedtuple('Embedding', 'vectors dataset algorithm preprocessing')
 
     # multi-term: sensible for multi token concepts
@@ -16,23 +21,53 @@ def main():
     embeddings_to_benchmark = [
 
         # Related Work
-        # Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/claims_cuis_hs_300.txt'), "Claims", "word2vec", "UNK"),
-        # Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/DeVine_etal_200.txt'), "DeVine et al.", "word2vec", "UNK"),
-        # Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/stanford_umls_svd_300.txt'),
-        #           "Stanford", "word2vec", "UNK"),
-        # Embedding(Embeddings.load_w2v_format('E:/AML4DH-DATA/cui2vec_pretrained.txt'), "cui2vec", "word2vec", "UNK"),
+        Embedding(Embeddings.load_w2v_format(os.path.join(config['PATH']['ExternalEmbeddings'], 'claims_cuis_hs_300.txt')), "Claims", "word2vec", "UNK"),
+        Embedding(Embeddings.load_w2v_format(os.path.join(config['PATH']['ExternalEmbeddings'], 'DeVine_etal_200.txt')), "DeVine et al.", "word2vec", "UNK"),
+        Embedding(Embeddings.load_w2v_format(os.path.join(config['PATH']['ExternalEmbeddings'], 'stanford_umls_svd_300.txt')),
+                  "Stanford", "word2vec", "UNK"),
+        Embedding(Embeddings.load_w2v_format(os.path.join(config['PATH']['ExternalEmbeddings'], 'cui2vec_pretrained.txt')), "cui2vec", "word2vec", "UNK"),
         Embedding(Embeddings.load(path="data/German_Medical.kv"), "GerVec", "word2vec", "multi-term"),
 
         # # Flair
-        Embedding(Embeddings.assign_concepts_to_vecs(Embeddings.load(path="data/GGPONC__flair_no_cui_all.kv"),
+        Embedding(Embeddings.assign_concepts_to_vecs(Embeddings.load(path="data/GGPONC_flair_no_cui_all.kv"),
                                                      umls_mapper),
-                                                    "GGPONC", "Flair", "SE CUI"),
+                  "GGPONC", "Flair", "SE CUI"),
         Embedding(Embeddings.assign_concepts_to_vecs(Embeddings.load(path="data/German_Medical_flair_no_cui_all.kv"),
                                                      umls_mapper),
                   "GerVec", "Flair", "SE CUI"),
-
         Embedding(Embeddings.load(path="data/German_Medical_flair_JULIE_all.kv"),
                   "GerVec", "Flair", "JULIE"),
+        Embedding(Embeddings.assign_concepts_to_vecs(
+            Embeddings.load(path="data/German_Medical_bert_no_finetune_no_cui_all.kv"),
+                                                     umls_mapper),
+                  "GerVec", "BERT", "SE CUI NF"),
+        Embedding(Embeddings.assign_concepts_to_vecs(
+            Embeddings.load(path="data/60K_news_flair_no_cui_all.kv"),
+            umls_mapper),
+                  "News 100K", "Flair", "SE CUI"),
+        Embedding(Embeddings.assign_concepts_to_vecs(
+            Embeddings.load(path="data/60K_news_bert_no_finetune_no_cui_all.kv"),
+            umls_mapper),
+                  "News 100K", "BERT", "SE CUI NF"),
+        Embedding(
+            Embeddings.assign_concepts_to_vecs(
+                Embeddings.load(path="data/German_Medical_flair_no_finetune_no_cui_all.kv"),
+                umls_mapper),
+            "GerVec", "Flair", "SE CUI NF"),
+        Embedding(
+            Embeddings.assign_concepts_to_vecs(
+                Embeddings.load(path="data/100K_news_flair_no_fine_tune_no_cui_all.kv"),
+                umls_mapper),
+            "News 100K", "Flair", "SE CUI NF"),
+        Embedding(
+            Embeddings.assign_concepts_to_vecs(
+                Embeddings.load(path="data/100K_news_flair_JULIE_all.kv"),
+                umls_mapper),
+            "News 100K", "Flair", "JULIE"),
+
+        Embedding(Embeddings.load(path="data/100K_news_flair_all.kv"), "News 100K", "Flair", "multi-term"),
+
+        # Gervec / news multiterm flair, single term flair
 
         # # GGPONC
         Embedding(Embeddings.load(path="data/no_prep_vecs_test_all.kv"), "GGPONC", "word2vec", "multi-term"),
@@ -88,11 +123,13 @@ def main():
         #     "GerVec", "Glove", "SE CUI")
     ]
 
+
+
     evaluators = [
-        UMLSEvaluator(from_dir='E:/AML4DH-DATA/UMLS'),
-        NDFEvaluator(from_dir='E:/AML4DH-DATA/NDF'),
-        SRSEvaluator(from_dir="E:/AML4DH-DATA/SRS"),
-        MRRELEvaluator(from_dir='E:/AML4DH-DATA/UMLS')
+        UMLSEvaluator(from_dir=config["PATH"]["UMLS"]),
+        NDFEvaluator(from_dir=config["PATH"]["NDF"]),
+        SRSEvaluator(from_dir=config["PATH"]["SRS"]),
+        MRRELEvaluator(from_dir=config["PATH"]["UMLS"])
     ]
 
     benchmarks_to_use = [

@@ -1,76 +1,77 @@
+import os
+
 from vectorization.embeddings import Embeddings
-from utils.transform_data import DataHandler
+from utils.transform_data import DataHandler, ConfigLoader
 
 
 def main():
+    config = ConfigLoader.get_config()
     # News
-    # sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences.txt",
-    #                   embedding_name="3M_news",
-    #                   embeddings_algorithm="word2vec",
-    #                   number_sentences=None)
-
-    # sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences.txt",
-    #                   embedding_name="60K_news_fastText",
-    #                   embeddings_algorithm="fastText",
-    #                   number_sentences=60000)
-
-    # sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences.txt",
-    #                   embedding_name="60K_news_Glove",
-    #                   embeddings_algorithm="Glove",
-    #                   number_sentences=60000)
-    # sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences_JULIE.txt",
-    #                   embedding_name="60K_news_JULIE",
-    #                   embeddings_algorithm="word2vec",
-    #                   number_sentences=60000,
-    #                   umls_replacement=False)
-    # sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences.txt",
-    #                   embedding_name="60K_news_no_cui",
-    #                   embeddings_algorithm="word2vec",
-    #                   number_sentences=60000,
-    #                   umls_replacement=False)
-    # sentence_data2vec(path="E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences.txt",
-    #                   embedding_name="60K_news_plain",
-    #                   embeddings_algorithm="word2vec",
-    #                   number_sentences=60000,
-    #                   use_multiterm_replacement=False)
+    # Embeddings.sentence_data2vec(path=os.path.join(config['PATH']['News'], 'news_2015_3M-sentences.txt'),
+    #                              embedding_name="3M_news",
+    #                              embeddings_algorithm="word2vec")
+    #
+    # Embeddings.sentence_data2vec(path=os.path.join(config['PATH']['News'], 'news_2015_3M-sentences.txt'),
+    #                              embedding_name="60K_news_fastText",
+    #                              embeddings_algorithm="fastText",
+    #                              number_sentences=60000)
+    #
+    # Embeddings.sentence_data2vec(path=os.path.join(config['PATH']['News'], 'news_2015_3M-sentences.txt'),
+    #                              embedding_name="60K_news_Glove",
+    #                              embeddings_algorithm="Glove",
+    #                              number_sentences=60000)
+    # Embeddings.sentence_data2vec(path=os.path.join(config['PATH']['News'], 'news_2015_3M-sentences_JULIE.txt'),
+    #                              embedding_name="60K_news_JULIE",
+    #                              embeddings_algorithm="word2vec",
+    #                              number_sentences=60000,
+    #                              umls_replacement=False)
+    # Embeddings.sentence_data2vec(path=os.path.join(config['PATH']['News'], 'news_2015_3M-sentences.txt'),
+    #                              embedding_name="60K_news_no_cui",
+    #                              embeddings_algorithm="word2vec",
+    #                              number_sentences=60000,
+    #                              umls_replacement=False)
+    # Embeddings.sentence_data2vec(path=os.path.join(config['PATH']['News'], 'news_2015_3M-sentences.txt'),
+    #                              embedding_name="60K_news_plain",
+    #                              embeddings_algorithm="word2vec",
+    #                              number_sentences=60000,
+    #                              use_multiterm_replacement=False)
 
     # GGPONC
-    # sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
-    #                   embedding_name="GGPONC",
-    #                   embeddings_algorithm="word2vec")
 
-    # sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
-    #                   embedding_name="GGPONC_fastText",
-    #                   embeddings_algorithm="fastText")
+
+    # Embeddings.sentence_data2vec(path=os.path.join(config['PATH']['GGPONC'], 'Plain Text', 'cpg-sentences.txt'),
+    #                              embedding_name="GGPONC",
+    #                              embeddings_algorithm="word2vec")
+    #
+    # Embeddings.sentence_data2vec(path=os.path.join(config['PATH']['GGPONC'], 'Plain Text', 'cpg-sentences.txt'),
+    #                              embedding_name="GGPONC_fastText",
+    #                              embeddings_algorithm="fastText")
     # #fixme check: still nan error?
-    # sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
-    #                   embedding_name="GGPONC_glove",
-    #                   embeddings_algorithm="Glove")
-    # sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences_JULIE.txt",
-    #                   embedding_name="GGPONC_JULIE",
-    #                   embeddings_algorithm="word2vec",
-    #                   umls_replacement=False
-    #                   )
-    # sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
-    #                   embedding_name="GGPONC_no_cui",
-    #                   embeddings_algorithm="word2vec",
-    #                   umls_replacement=False
-    #                   )
-    # sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
-    #                   embedding_name="GGPONC_plain",
-    #                   embeddings_algorithm="word2vec",
-    #                   use_multiterm_replacement=False
-    #                   )
-
-    # JSYNC
-    # sentence_data2vec(path="E:/AML4DH-DATA/JSynCC/jsynncc-sentences.txt",
-    #                   embedding_name="JSynCC",
-    #                   embeddings_algorithm="word2vec")
+    # Embeddings.sentence_data2vec(path=os.path.join(config['PATH']['GGPONC'], 'Plain Text', 'cpg-sentences.txt'),
+    #                              embedding_name="GGPONC_glove",
+    #                              embeddings_algorithm="Glove")
+    # Embeddings.sentence_data2vec(path=os.path.join(config['PATH']['GGPONC'], 'Plain Text', 'cpg-sentences_JULIE.txt'),
+    #                              embedding_name="GGPONC_JULIE",
+    #                              embeddings_algorithm="word2vec",
+    #                              umls_replacement=False)
+    # Embeddings.sentence_data2vec(path=os.path.join(config['PATH']['GGPONC'], 'Plain Text', 'cpg-sentences.txt'),
+    #                              embedding_name="GGPONC_no_cui",
+    #                              embeddings_algorithm="word2vec",
+    #                              umls_replacement=False)
+    # Embeddings.sentence_data2vec(path=os.path.join(config['PATH']['GGPONC'], 'Plain Text', 'cpg-sentences.txt'),
+    #                              embedding_name="GGPONC_plain",
+    #                              embeddings_algorithm="word2vec",
+    #                              use_multiterm_replacement=False)
+    #
+    # # JSYNC
+    # Embeddings.sentence_data2vec(path=os.path.join(config['PATH']['JSynnCC'], 'jsynncc-sentences.txt'),
+    #                              embedding_name="JSynnCC",
+    #                              embeddings_algorithm="word2vec")
 
     # German PubMed
-    path = "E:/AML4DH-DATA/german_pubmed/all_sentences.txt"
+    path = os.path.join(config['PATH']['PubMed'], 'all_sentences.txt')
     if not DataHandler.path_exists(path):
-        DataHandler.read_files_and_save_sentences_to_dir("E:\AML4DH-DATA\german_pubmed")
+        DataHandler.read_files_and_save_sentences_to_dir(config['PATH']['PubMed'])
 
     Embeddings.sentence_data2vec(path=path,
                                  embedding_name="PubMed",
@@ -78,99 +79,96 @@ def main():
 
     # Medical Concat
     # paths = [
-    #     "E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
-    #     "E:/AML4DH-DATA/JSynCC/jsynncc-sentences.txt",
-    #     "E:/AML4DH-DATA/german_pubmed/all_sentences.txt"
+    #     os.path.join(config['PATH']['GGPONC'], 'Plain Text', 'cpg-sentences.txt'),
+    #     os.path.join(config['PATH']['JSynnCC'], 'jsynncc-sentences.txt'),
+    #     os.path.join(config['PATH']['PubMed'], 'all_sentences.txt'),
     # ]
     # Embeddings.sentence_data2vec(path=paths,
-    #                   embedding_name="German_Medical",
-    #                   embeddings_algorithm="word2vec",
-    #                   restrict_vectors=True,
-    #                   umls_replacement=True,
-    #                   use_multiterm_replacement=True
-    #                   )
+    #                              embedding_name="German_Medical",
+    #                              embeddings_algorithm="word2vec",
+    #                              restrict_vectors=True,
+    #                              umls_replacement=True,
+    #                              use_multiterm_replacement=True
+    #                              )
     #
     # Embeddings.sentence_data2vec(path=paths,
-    #                   embedding_name="German_Medical_plain",
-    #                   embeddings_algorithm="word2vec",
-    #                   umls_replacement=True,
-    #                   use_multiterm_replacement=False
-    #                   )
+    #                              embedding_name="German_Medical_plain",
+    #                              embeddings_algorithm="word2vec",
+    #                              umls_replacement=True,
+    #                              use_multiterm_replacement=False
+    #                              )
     #
     # Embeddings.sentence_data2vec(path=paths,
-    #                   embedding_name="German_Medical_no_cui",
-    #                   embeddings_algorithm="word2vec",
-    #                   umls_replacement=False
-    #                   )
-
-    # Embeddings.sentence_data2vec(path=paths,
-    #                   embedding_name="German_Medical_fastText",
-    #                   embeddings_algorithm="fastText",
-    #                   umls_replacement=True,
-    #                   use_multiterm_replacement=True
-    #                   )
+    #                              embedding_name="German_Medical_no_cui",
+    #                              embeddings_algorithm="word2vec",
+    #                              umls_replacement=False
+    #                              )
     #
     # Embeddings.sentence_data2vec(path=paths,
-    #                   embedding_name="German_Medical_fastText_plain",
-    #                   embeddings_algorithm="fastText",
-    #                   umls_replacement=True,
-    #                   use_multiterm_replacement=False
-    #                   )
+    #                              embedding_name="German_Medical_fastText",
+    #                              embeddings_algorithm="fastText",
+    #                              umls_replacement=True,
+    #                              use_multiterm_replacement=True
+    #                              )
     #
     # Embeddings.sentence_data2vec(path=paths,
-    #                   embedding_name="German_Medical_fastText_no_cui",
-    #                   embeddings_algorithm="fastText",
-    #                   umls_replacement=False
-    #                   )
-
-    # Embeddings.sentence_data2vec(path=paths,
-    #                   embedding_name="German_Medical_Glove",
-    #                   embeddings_algorithm="Glove",
-    #                   umls_replacement=True,
-    #                   use_multiterm_replacement=True
-    #                   )
+    #                              embedding_name="German_Medical_fastText_plain",
+    #                              embeddings_algorithm="fastText",
+    #                              umls_replacement=True,
+    #                              use_multiterm_replacement=False
+    #                             )
     #
     # Embeddings.sentence_data2vec(path=paths,
-    #                   embedding_name="German_Medical_Glove_plain",
-    #                   embeddings_algorithm="Glove",
-    #                   umls_replacement=True,
-    #                   use_multiterm_replacement=False
-    #                   )
+    #                              embedding_name="German_Medical_fastText_no_cui",
+    #                              embeddings_algorithm="fastText",
+    #                              umls_replacement=False
+    #                              )
     #
     # Embeddings.sentence_data2vec(path=paths,
-    #                   embedding_name="German_Medical_Glove_no_cui",
-    #                   embeddings_algorithm="Glove",
-    #                   umls_replacement=False
-    #                   )
-
+    #                              embedding_name="German_Medical_Glove",
+    #                              embeddings_algorithm="Glove",
+    #                              umls_replacement=True,
+    #                              use_multiterm_replacement=True
+    #                              )
+    #
+    # Embeddings.sentence_data2vec(path=paths,
+    #                              embedding_name="German_Medical_Glove_plain",
+    #                              embeddings_algorithm="Glove",
+    #                              umls_replacement=True,
+    #                              use_multiterm_replacement=False
+    #                              )
+    #
+    # Embeddings.sentence_data2vec(path=paths,
+    #                              embedding_name="German_Medical_Glove_no_cui",
+    #                              embeddings_algorithm="Glove",
+    #                              umls_replacement=False
+    #                              )
     # paths = [
-    #     "E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences_JULIE.txt",
-    #     "E:/AML4DH-DATA/JSynCC/jsynncc-sentences_JULIE.txt",
-    #     "E:/AML4DH-DATA/german_pubmed/all_sentences_JULIE.txt"
+    #     os.path.join(config['PATH']['GGPONC'], 'Plain Text', 'cpg-sentences_JULIE.txt'),
+    #     os.path.join(config['PATH']['JSynnCC'], 'jsynncc-sentences_JULIE.txt'),
+    #     os.path.join(config['PATH']['PubMed'], 'all_sentences_JULIE.txt'),
     # ]
     # Embeddings.sentence_data2vec(path=paths,
-    #                   embedding_name="German_Medical_JULIE",
-    #                   embeddings_algorithm="word2vec",
-    #                   umls_replacement=False
-    #                   )
+    #                              embedding_name="German_Medical_JULIE",
+    #                              embeddings_algorithm="word2vec",
+    #                              umls_replacement=False
+    #                              )
     # Embeddings.sentence_data2vec(path=paths,
-    #                   embedding_name="German_Medical_fastText_JULIE",
-    #                   embeddings_algorithm="fastText",
-    #                   umls_replacement=False
-    #                   )
+    #                              embedding_name="German_Medical_fastText_JULIE",
+    #                              embeddings_algorithm="fastText",
+    #                              umls_replacement=False
+    #                              )
     # Embeddings.sentence_data2vec(path=paths,
-    #                   embedding_name="German_Medical_Glove_JULIE",
-    #                   embeddings_algorithm="Glove",
-    #                   umls_replacement=False
-    #                   )
+    #                              embedding_name="German_Medical_Glove_JULIE",
+    #                              embeddings_algorithm="Glove",
+    #                              umls_replacement=False
+    #                              )
     # Flair
-    Embeddings.sentence_data2vec(path="E:/AML4DH-DATA/CPG-AMIA2020/Plain Text/cpg-sentences.txt",
-                      embedding_name="Flair",
-                      embeddings_algorithm="Flair",
-                      flair_corpus_path=None,
-                      flair_model_path='resources/taggers/language_model')
-
-
+    # Embeddings.sentence_data2vec(path=os.path.join(config['PATH']['GGPONC'], 'Plain Text', 'cpg-sentences.txt'),
+    #                              embedding_name="Flair",
+    #                              embeddings_algorithm="Flair",
+    #                              flair_corpus_path="data/flair_test123",
+    #                              flair_model_path='resources/taggers/language_model')
 
     # # load sentences
     # # https://www.kaggle.com/rtatman/3-million-german-sentences/data?select=deu_news_2015_3M-sentences.txt
@@ -201,7 +199,6 @@ def main():
     # file_name = "no_prep_vecs_test"
     #
     # Embeddings.save_medical(vecs, file_name, umls_mapper)
-
 
 
 if __name__ == "__main__":

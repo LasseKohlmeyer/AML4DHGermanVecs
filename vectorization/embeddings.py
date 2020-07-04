@@ -282,7 +282,7 @@ class Embeddings:
     @staticmethod
     def sentence_data2vec(path: Union[str, List[str]], embedding_name: str,
                           embeddings_algorithm: Union[str, gensim.models.Word2Vec, gensim.models.FastText] = "word2vec",
-                          number_sentences: int = 1000,
+                          number_sentences: int = None,
                           use_phrases: bool = False,
                           restrict_vectors: bool = False,
                           umls_replacement: bool = True,

@@ -21,8 +21,16 @@ from ..utils.transform_data import DataHandler
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
+config = ConfigLoader.get_config()
+
 
 class Embeddings:
+    umls_mapper = None
+
+    @classmethod
+    def set_umls_mapper(cls, umls_mapper: UMLSMapper):
+        cls.umls_mapper = umls_mapper
+
     @staticmethod
     def to_gensim_binary(dict_vecs: Dict[str, np.ndarray]) -> gensim.models.KeyedVectors:
         def my_save_word2vec_format(fname: str, vocab: Dict[str, np.ndarray], vectors: np.ndarray, binary: bool = True,
@@ -62,7 +70,7 @@ class Embeddings:
                     else:
                         fout.write(utils.to_utf8("%s %s\n" % (word, ' '.join(repr(val) for val in row))))
 
-        file_name = 'data/train.bin'
+        file_name = os.path.join(config["PATH"]["InternalEmbeddings"], 'train.bin')
         dim = 0
         for vec in dict_vecs.values():
             dim = len(vec)
@@ -233,18 +241,23 @@ class Embeddings:
         except FileNotFoundError:
             word_vectors.save(path)
 
-    @staticmethod
-    def save_medical(word_vectors: gensim.models.KeyedVectors, name: str, umls_mapping, restrict=True):
-        Embeddings.save(word_vectors, path=f"data/{name}_all.kv")
+    @classmethod
+    def save_medical(cls, word_vectors: gensim.models.KeyedVectors, name: str, restrict=True):
+        save_path_all = os.path.join(config["PATH"]["InternalEmbeddings"], f"{name}_all.kv")
+        Embeddings.save(word_vectors, path=save_path_all)
         print(f'saved {name} vectors')
         if restrict:
-            concept_vecs = umls_mapping.get_umls_vectors_only(word_vectors)
+            save_path_med = os.path.join(config["PATH"]["InternalEmbeddings"], f"{name}.kv")
+            if cls.umls_mapper is None:
+                print('No UMLS defined yet. Build UMLSMapper...')
+                cls.umls_mapper = UMLSMapper(from_dir=config["PATH"]["UMLS"])
+            concept_vecs = cls.umls_mapper.get_umls_vectors_only(word_vectors)
             Embeddings.restrict_vectors(word_vectors, concept_vecs.keys())
-            Embeddings.save(word_vectors, path=f"data/{name}.kv")
+            Embeddings.save(word_vectors, path=save_path_med)
             print(f'Restricted to {len(word_vectors.vocab)} vectors')
 
     @staticmethod
-    def load(path: str) -> gensim.models.KeyedVectors:
+    def load_keyed_vecs(path: str) -> gensim.models.KeyedVectors:
         print(f"load embedding of file {path}...")
         return gensim.models.KeyedVectors.load(path)
 
@@ -253,15 +266,42 @@ class Embeddings:
         print(f"load embedding of file {path}...")
         return gensim.models.KeyedVectors.load_word2vec_format(path, binary=binary)
 
+    @classmethod
+    def load(cls, path: str = None, file: str = None, internal: bool = True, estimate_cui=False) \
+            -> gensim.models.KeyedVectors:
+        if file:
+            if internal:
+                use_folder = 'InternalEmbeddings'
+            else:
+                use_folder = 'ExternalEmbeddings'
+            path = os.path.join(config['PATH'][use_folder], file)
+        if path.endswith('.kv'):
+            keyed_vecs = cls.load_keyed_vecs(path)
+        elif path.endswith('.txt'):
+            keyed_vecs = cls.load_w2v_format(path)
+        elif path.endswith('.model'):
+            keyed_vecs = cls.load_w2v_format(path, binary=True)
+        else:
+            raise UserWarning('Not supported Embedding type (not .kv or .txt)')
+
+        if estimate_cui:
+            keyed_vecs = cls.assign_concepts_to_vecs(keyed_vecs)
+
+        return keyed_vecs
+
+
     @staticmethod
     def transform_glove_in_word2vec(glove_input_file: str, word2vec_output_file: str):
         glove2word2vec(glove_input_file, word2vec_output_file)
 
-    @staticmethod
-    def assign_concepts_to_vecs(vectors: gensim.models.KeyedVectors, umls_mapper: UMLSMapper):
+    @classmethod
+    def assign_concepts_to_vecs(cls, vectors: gensim.models.KeyedVectors):
+        if cls.umls_mapper is None:
+            print('No UMLS defined yet. Build UMLSMapper...')
+            cls.umls_mapper = UMLSMapper(from_dir=config["PATH"]["UMLS"])
         addable_concepts = []
         addable_vectors = []
-        for concept, terms in umls_mapper.umls_reverse_dict.items():
+        for concept, terms in cls.umls_mapper.umls_reverse_dict.items():
             concept_vec = []
             for term in terms:
                 term_tokens = term.split()
@@ -276,17 +316,16 @@ class Embeddings:
                 addable_concepts.append(concept)
                 addable_vectors.append(sum(concept_vec) / len(concept_vec))
         vectors.add(addable_concepts, addable_vectors)
-        print(len(addable_concepts))
+        # print(len(addable_concepts))
         return vectors
 
-    @staticmethod
-    def sentence_data2vec(path: Union[str, List[str]], embedding_name: str,
+    @classmethod
+    def sentence_data2vec(cls, path: Union[str, List[str]], embedding_name: str,
                           embeddings_algorithm: Union[str, gensim.models.Word2Vec, gensim.models.FastText] = "word2vec",
                           number_sentences: int = None,
                           use_phrases: bool = False,
                           restrict_vectors: bool = False,
                           umls_replacement: bool = True,
-                          umls_path: str = 'E:/AML4DH-DATA/UMLS',
                           use_multiterm_replacement: bool = True,
                           flair_model_path: str = None,
                           flair_corpus_path: str = None,
@@ -302,7 +341,7 @@ class Embeddings:
         if isinstance(embeddings_algorithm, str) and embeddings_algorithm.lower() == "flair":
             is_flair = True
 
-        umls_mapper = UMLSMapper(from_dir=umls_path)
+
         if isinstance(path, list):
             data_sentences = DataHandler.concat_path_sentences(path)
             # old:
@@ -330,13 +369,17 @@ class Embeddings:
         if flair_model_path:
             tokenize = False
         if umls_replacement:
+            if cls.umls_mapper is None:
+                print('No UMLS defined yet. Build UMLSMapper...')
+                cls.umls_mapper = UMLSMapper(from_dir=config["PATH"]["UMLS"])
+
             if use_multiterm_replacement:
-                data_sentences = umls_mapper.replace_documents_with_spacy_multiterm(data_sentences, tokenize=tokenize)
+                data_sentences = cls.umls_mapper.replace_documents_with_spacy_multiterm(data_sentences, tokenize=tokenize)
             else:
-                data_sentences = umls_mapper.replace_documents_token_based(data_sentences, tokenize=tokenize)
+                data_sentences = cls.umls_mapper.replace_documents_token_based(data_sentences, tokenize=tokenize)
             print(data_sentences[:10])
         else:
-            data_sentences = umls_mapper.spacy_tokenize(data_sentences)
+            data_sentences = cls.umls_mapper.spacy_tokenize(data_sentences)
             print(data_sentences[:10])
         # for s in data_sentences:
         #     print(s)
@@ -357,7 +400,34 @@ class Embeddings:
 
         print(f'Got {len(vecs.vocab)} vectors for {len(data_sentences)} sentences')
 
-        Embeddings.save_medical(vecs, embedding_name, umls_mapper, restrict=restrict_vectors)
+        Embeddings.save_medical(vecs, embedding_name, restrict=restrict_vectors)
+
+
+class Embedding:
+    def __init__(self, file: str, dataset: str, algorithm: str, preprocessing: str,
+                 internal: bool = True, estimate_cui: bool = False, is_file: bool = True):
+        self.path = file
+        self.dataset = dataset
+        self.algorithm = algorithm
+        self.preprocessing = preprocessing
+        self.internal = internal
+        self.estimate_cui = estimate_cui
+        self.is_file = is_file
+        self.vectors = None
+
+    def load(self):
+        if self.is_file:
+            self.vectors = Embeddings.load(file=self.path,
+                                           internal=self.internal,
+                                           estimate_cui=self.estimate_cui)
+        else:
+            self.vectors = Embeddings.load(path=self.path,
+                                           internal=self.internal,
+                                           estimate_cui=self.estimate_cui)
+
+    def clean(self):
+        del self.vectors
+        self.vectors = None
 
 
 class Flair:

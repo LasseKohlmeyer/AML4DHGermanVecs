@@ -3,6 +3,7 @@
       "UMLS": "path/to/UMLS",
       "NDF": "path/to/NDF",
       "SRS": "path/to/SRS",
+      "InternalEmbeddings": "path/to/data",
       "ExternalEmbeddings": "path/to/external/data",
       "GGPONC": "path/to/GGPONC",
       "JSynnCC": "path/to/JSynnCC",

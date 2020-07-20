@@ -257,6 +257,9 @@ class MRRELEvaluator(Evaluator):
         for i, row in tqdm(df_association.iterrows(), total=len(df_association), desc="Find association data"):
             mrrel_association[row["CUI1"]].append(row["CUI2"])
 
+        mrrel_cause = {key: list(dict.fromkeys(values)) for key, values in mrrel_cause.items()}
+        mrrel_association = {key: list(dict.fromkeys(values))for key, values in mrrel_association.items()}
+
         return mrrel_cause, mrrel_association
 
     def load_from_json(self, path: str):

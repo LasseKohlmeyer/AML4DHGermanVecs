@@ -21,18 +21,25 @@ from ..utils.transform_data import DataHandler
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-config = ConfigLoader.get_config()
+# config = ConfigLoader.get_config()
 
 
 class Embeddings:
+    config = None
     umls_mapper = None
 
-    @classmethod
-    def set_umls_mapper(cls, umls_mapper: UMLSMapper):
-        cls.umls_mapper = umls_mapper
+    # @classmethod
+    # def set_umls_mapper(cls, umls_mapper: UMLSMapper):
+    #     cls.umls_mapper = umls_mapper
 
-    @staticmethod
-    def to_gensim_binary(dict_vecs: Dict[str, np.ndarray]) -> gensim.models.KeyedVectors:
+    @classmethod
+    def set_config_and_get_umls_mapper(cls, config):
+        cls.config = config
+        cls.umls_mapper = UMLSMapper(from_dir=cls.config["PATH"]["UMLS"])
+        return cls.umls_mapper
+
+    @classmethod
+    def to_gensim_binary(cls, dict_vecs: Dict[str, np.ndarray]) -> gensim.models.KeyedVectors:
         def my_save_word2vec_format(fname: str, vocab: Dict[str, np.ndarray], vectors: np.ndarray, binary: bool = True,
                                     total_vec: int = 2):
             """Store the input-hidden weight matrix in the same format used by the original
@@ -70,7 +77,7 @@ class Embeddings:
                     else:
                         fout.write(utils.to_utf8("%s %s\n" % (word, ' '.join(repr(val) for val in row))))
 
-        file_name = os.path.join(config["PATH"]["InternalEmbeddings"], 'train.bin')
+        file_name = os.path.join(cls.config["PATH"]["InternalEmbeddings"], 'train.bin')
         dim = 0
         for vec in dict_vecs.values():
             dim = len(vec)
@@ -243,14 +250,14 @@ class Embeddings:
 
     @classmethod
     def save_medical(cls, word_vectors: gensim.models.KeyedVectors, name: str, restrict=True):
-        save_path_all = os.path.join(config["PATH"]["InternalEmbeddings"], f"{name}_all.kv")
+        save_path_all = os.path.join(cls.config["PATH"]["InternalEmbeddings"], f"{name}_all.kv")
         Embeddings.save(word_vectors, path=save_path_all)
         print(f'saved {name} vectors')
         if restrict:
-            save_path_med = os.path.join(config["PATH"]["InternalEmbeddings"], f"{name}.kv")
+            save_path_med = os.path.join(cls.config["PATH"]["InternalEmbeddings"], f"{name}.kv")
             if cls.umls_mapper is None:
                 print('No UMLS defined yet. Build UMLSMapper...')
-                cls.umls_mapper = UMLSMapper(from_dir=config["PATH"]["UMLS"])
+                cls.umls_mapper = UMLSMapper(from_dir=cls.config["PATH"]["UMLS"])
             concept_vecs = cls.umls_mapper.get_umls_vectors_only(word_vectors)
             Embeddings.restrict_vectors(word_vectors, concept_vecs.keys())
             Embeddings.save(word_vectors, path=save_path_med)
@@ -274,7 +281,7 @@ class Embeddings:
                 use_folder = 'InternalEmbeddings'
             else:
                 use_folder = 'ExternalEmbeddings'
-            path = os.path.join(config['PATH'][use_folder], file)
+            path = os.path.join(cls.config['PATH'][use_folder], file)
         if path.endswith('.kv'):
             keyed_vecs = cls.load_keyed_vecs(path)
         elif path.endswith('.txt'):
@@ -298,7 +305,7 @@ class Embeddings:
     def assign_concepts_to_vecs(cls, vectors: gensim.models.KeyedVectors):
         if cls.umls_mapper is None:
             print('No UMLS defined yet. Build UMLSMapper...')
-            cls.umls_mapper = UMLSMapper(from_dir=config["PATH"]["UMLS"])
+            cls.umls_mapper = UMLSMapper(from_dir=cls.config["PATH"]["UMLS"])
         addable_concepts = []
         addable_vectors = []
         for concept, terms in cls.umls_mapper.umls_reverse_dict.items():
@@ -371,7 +378,7 @@ class Embeddings:
         if umls_replacement:
             if cls.umls_mapper is None:
                 print('No UMLS defined yet. Build UMLSMapper...')
-                cls.umls_mapper = UMLSMapper(from_dir=config["PATH"]["UMLS"])
+                cls.umls_mapper = UMLSMapper(from_dir=cls.config["PATH"]["UMLS"])
 
             if use_multiterm_replacement:
                 data_sentences = cls.umls_mapper.replace_documents_with_spacy_multiterm(data_sentences, tokenize=tokenize)

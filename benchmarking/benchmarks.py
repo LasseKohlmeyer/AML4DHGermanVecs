@@ -56,7 +56,8 @@ class Benchmark(ABC):
 
     def cosine(self, word1: str = None, word2: str = None,
                concept1: str = None, concept2: str = None,
-               vector1: np.ndarray = None, vector2: np.ndarray = None) -> Union[float, None]:
+               vector1: np.ndarray = None, vector2: np.ndarray = None,
+               same_vec_zero: bool = False) -> Union[float, None]:
         cos = None
 
         if word1 and word2:
@@ -72,7 +73,10 @@ class Benchmark(ABC):
                 # print(concept1, concept2, vector1, vector2)
 
         if vector1 is not None and vector2 is not None:
-            cos = self.vectors.cosine_similarities(vector1, np.array([vector2]))[0]
+            if same_vec_zero and (vector1 == vector2).all():
+                cos = 0
+            else:
+                cos = self.vectors.cosine_similarities(vector1, np.array([vector2]))[0]
 
         if np.isnan(cos):
             cos = 0
@@ -298,6 +302,8 @@ class SilhouetteCoefficient(Benchmark):
             s_is.append(mean_category_s_i)
             categories.set_description(f"{category}: {mean_category_s_i:.4f}")
             categories.refresh()  # to show immediately the update
+        if len(s_is) == 0:
+            return 0
         return max(s_is)  # min, avg?
 
 
@@ -373,6 +379,8 @@ class EmbeddingSilhouetteCoefficient(Benchmark):
             s_is.append(mean_category_s_i)
             categories.set_description(f"{category}: {mean_category_s_i:.4f}")
             categories.refresh()  # to show immediately the update
+        if len(s_is) == 0:
+            return 0
         return sum(s_is) / len(s_is)  # min, max?
 
 
@@ -452,6 +460,9 @@ class ConceptualSimilarityChoi(Benchmark):
                 if v_i in self.concept2category:
                     sigma += category_true(v_i, category) / math.log((i + 1) + 1, 2)
                 # else: sigma += 0 (if neighbor not CUI ignore it)
+
+        if len(v_t) == 0:
+            return 0
         return sigma / len(v_t)
 
 
@@ -510,6 +521,8 @@ class MedicalRelatednessChoi(Benchmark, ABC):
                                                                   (v_star_i, self.get_concept_vector(v_star_i),
                                                                    s_difference, self.vectors)
                                                                   for v_star_i in v_star)
+        if len(v_star) == 0:
+            return 0
         return sum(results) / len(v_star)
 
     def run_mrm(self, relation: Relation, sample: int = None):
@@ -545,6 +558,8 @@ class MedicalRelatednessChoi(Benchmark, ABC):
                 f'{max(results):.5f} max')
             tqdm_progress.update()
 
+        if len(results) == 0:
+            return 0, 0
         return sum(results) / len(results), max(results)
 
 
@@ -601,7 +616,8 @@ class HumanAssessment(Benchmark):
                     other_concept_vec = self.get_concept_vector(other_concept)
                     if other_concept_vec is not None:
                         distance = abs(human_assessment_dict[concept][other_concept]
-                                       - self.cosine(vector1=concept_vec, vector2=other_concept_vec))
+                                       - self.cosine(vector1=concept_vec, vector2=other_concept_vec,
+                                                     same_vec_zero=not(concept == other_concept)))
                         sigma.append(distance)
                         tqdm_bar.set_description(f"Human Assessment ({self.dataset}|{self.algorithm}|"
                                                  f"{self.preprocessing}): "
@@ -620,8 +636,16 @@ class HumanAssessment(Benchmark):
                 for other_concept in other_concepts:
                     other_concept_vec = self.get_concept_vector(other_concept)
                     if other_concept_vec is not None:
-                        human_assessment_values.append(human_assessment_dict[concept][other_concept])
-                        cosine_values.append(self.cosine(vector1=concept_vec, vector2=other_concept_vec))
+                        # cos = self.cosine(vector1=concept_vec, vector2=other_concept_vec,
+                        #                   same_vec_zero=not(concept == other_concept))
+                        cos = self.cosine(vector1=concept_vec, vector2=other_concept_vec,
+                                          same_vec_zero=False)
+                        if cos == 1 and concept != other_concept:
+                            human_assessment_values.append(0)
+                            cosine_values.append(cos)
+                        else:
+                            human_assessment_values.append(human_assessment_dict[concept][other_concept])
+                            cosine_values.append(cos)
         cor, p = spearmanr(human_assessment_values, cosine_values)
         return cor
 
@@ -657,6 +681,8 @@ class HumanAssessment(Benchmark):
                                      f"{score:.4f}")
             tqdm_bar.update()
 
+        if len(scores) == 0:
+            return 0
         return sum(scores) / len(scores)
 
 
@@ -679,7 +705,8 @@ class AbstractBeamBenchmark(Benchmark, ABC):
         other_sample = self.sample(other_concepts, sample_size)
 
         bootstrap_values = [self.cosine(vector1=self.get_concept_vector(concept),
-                                        vector2=self.get_concept_vector(other_concept))
+                                        vector2=self.get_concept_vector(other_concept),
+                                        same_vec_zero=not(concept == other_concept))
                             for concept, other_concept in zip(concept_sample, other_sample)]
 
         threshold = np.quantile(bootstrap_values, 1 - constant.SIG_LEVEL)
@@ -739,7 +766,9 @@ class SemanticTypeBeam(AbstractBeamBenchmark):
                     if j <= i:
                         continue
                     observed_score = self.cosine(vector1=self.get_concept_vector(first_category_concept),
-                                                 vector2=self.get_concept_vector(second_category_concept))
+                                                 vector2=self.get_concept_vector(second_category_concept),
+                                                 same_vec_zero=not(first_category_concept == second_category_concept)
+                                                 )
 
                     if observed_score >= sig_threshold:
                         num_positives += 1
@@ -753,7 +782,13 @@ class SemanticTypeBeam(AbstractBeamBenchmark):
                                      f"{(total_positives / total_observed_scores):.4f} score")
             tqdm_bar.update()
 
-        return total_positives / total_observed_scores, total_positives / total_observed_scores_strict
+        r_1 = 0
+        if total_observed_scores != 0:
+            r_1 = total_positives / total_observed_scores
+        r_2 = 0
+        if total_observed_scores_strict != 0:
+            r_2 = total_positives / total_observed_scores_strict
+        return r_1, r_2
 
 
 class NDFRTBeam(AbstractBeamBenchmark):
@@ -818,7 +853,9 @@ class NDFRTBeam(AbstractBeamBenchmark):
             num_positives = 0
 
             observed_score = self.cosine(vector1=self.get_concept_vector(current_treatment),
-                                         vector2=self.get_concept_vector(current_condition))
+                                         vector2=self.get_concept_vector(current_condition),
+                                         same_vec_zero=not(current_treatment == current_condition)
+                                         )
             if observed_score >= sig_threshold:
                 num_positives += 1
             num_observed_scores += 1
@@ -831,7 +868,13 @@ class NDFRTBeam(AbstractBeamBenchmark):
                                      f"{(total_positives / total_observed_scores):.4f} score")
             tqdm_bar.update()
 
-        return total_positives / total_observed_scores, total_positives / total_observed_scores_strict
+        r_1 = 0
+        if total_observed_scores != 0:
+            r_1 = total_positives / total_observed_scores
+        r_2 = 0
+        if total_observed_scores_strict != 0:
+            r_2 = total_positives / total_observed_scores_strict
+        return r_1, r_2
 
 
 class CausalityBeam(AbstractBeamBenchmark):
@@ -889,7 +932,9 @@ class CausalityBeam(AbstractBeamBenchmark):
             num_positives = 0
 
             observed_score = self.cosine(vector1=self.get_concept_vector(current_cause),
-                                         vector2=self.get_concept_vector(current_effect))
+                                         vector2=self.get_concept_vector(current_effect),
+                                         same_vec_zero=not(current_cause == current_effect)
+                                         )
             if observed_score >= sig_threshold:
                 num_positives += 1
             num_observed_scores += 1
@@ -902,9 +947,13 @@ class CausalityBeam(AbstractBeamBenchmark):
                                      f"{(total_positives / total_observed_scores):.4f} score")
             tqdm_bar.update()
 
-        if total_observed_scores == 0:
-            return 0
-        return total_positives / total_observed_scores, total_positives / total_observed_scores_strict
+        r_1 = 0
+        if total_observed_scores != 0:
+            r_1 = total_positives / total_observed_scores
+        r_2 = 0
+        if total_observed_scores_strict != 0:
+            r_2 = total_positives / total_observed_scores_strict
+        return r_1, r_2
 
 
 class AssociationBeam(AbstractBeamBenchmark):
@@ -962,7 +1011,9 @@ class AssociationBeam(AbstractBeamBenchmark):
             num_positives = 0
 
             observed_score = self.cosine(vector1=self.get_concept_vector(current_concept),
-                                         vector2=self.get_concept_vector(current_association))
+                                         vector2=self.get_concept_vector(current_association),
+                                         same_vec_zero=not(current_concept == current_association)
+                                         )
             if observed_score >= sig_threshold:
                 num_positives += 1
             num_observed_scores += 1
@@ -975,6 +1026,10 @@ class AssociationBeam(AbstractBeamBenchmark):
                                      f"{(total_positives / total_observed_scores):.4f} score")
             tqdm_bar.update()
 
-        if total_observed_scores == 0:
-            return 0
-        return total_positives / total_observed_scores, total_positives / total_observed_scores_strict
+        r_1 = 0
+        if total_observed_scores != 0:
+            r_1 = total_positives / total_observed_scores
+        r_2 = 0
+        if total_observed_scores_strict != 0:
+            r_2 = total_positives / total_observed_scores_strict
+        return r_1, r_2

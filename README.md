@@ -6,6 +6,7 @@ Example code and usage examples are provided in Jupyter notebooks.
 Define relevant paths in config.json (have a look at the default file).
 
 
+# Extensions
 To extend the processing pipeline do the following:
 
 ## Adding further preprocessing methods

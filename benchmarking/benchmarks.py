@@ -314,7 +314,6 @@ class SilhouetteCoefficient(Benchmark):
 class EmbeddingSilhouetteCoefficient(Benchmark):
     def __init__(self, embedding: Embedding,
                  umls_mapper: UMLSMapper,
-                 umls_evaluator: UMLSEvaluator,
                  evaluators: List[Evaluator]):
         super().__init__(embedding=embedding, umls_mapper=umls_mapper)
         self.umls_evaluator = None
@@ -774,7 +773,6 @@ class AbstractBeamBenchmark(Benchmark, ABC):
     def __init__(self, embedding: Embedding,
                  umls_mapper: UMLSMapper):
         super().__init__(embedding=embedding, umls_mapper=umls_mapper)
-
 
     @staticmethod
     def sample(elements: List, bootstraps: int = 10):

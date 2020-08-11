@@ -2,6 +2,10 @@
 This repository contains code to train and evaluate German medical embeddings.
 Example code and usage examples are provided in Jupyter notebooks.
 
+## Setup:
+Define relevant paths in config.json (have a look at the default file).
+
+
 To extend the processing pipeline do the following:
 
 ## Adding further preprocessing methods

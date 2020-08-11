@@ -80,10 +80,10 @@ class NDFEvaluator(Evaluator):
 
 class SRSEvaluator(Evaluator):
     def set_attributes(self, *args):
-        self.human_relatedness, self.human_similarity_cont, self.human_relatedness_cont, self.human_relatedness_mayo_srs = args
+        self.human_similarity_cont, self.human_relatedness_cont, self.human_relatedness_mayo_srs = args
 
     def __init__(self, from_dir: str = None, json_path: str = "srs_eval.json"):
-        self.human_relatedness, self.human_similarity_cont, self.human_relatedness_cont, self.human_relatedness_mayo_srs = None, None, None, None
+        self.human_similarity_cont, self.human_relatedness_cont, self.human_relatedness_mayo_srs = None, None, None
         self.check_for_json_and_parse(from_dir=from_dir, json_path=json_path)
 
     def load_semantics(self, directory: str):
@@ -103,14 +103,13 @@ class SRSEvaluator(Evaluator):
 
             return nested_dictionary
 
-        human_relatedness_dict = parse_file(file_name="MayoSRS.csv")
         human_similarity_cont_dict = parse_file(file_name="UMNSRS_similarity.csv")
         human_relatedness_cont_dict = parse_file(file_name="UMNSRS_relatedness.csv")
         human_relatedness_mayo_srs = parse_file(file_name="MayoSRS.csv")
 
-        return human_relatedness_dict, human_similarity_cont_dict, human_relatedness_cont_dict, human_relatedness_mayo_srs
+        return human_similarity_cont_dict, human_relatedness_cont_dict, human_relatedness_mayo_srs
 
     def load_from_json(self, path: str):
         with open(path, 'r', encoding='utf-8') as file:
             data = json.loads(file.read())
-        return data["human_relatedness"], data["human_similarity_cont"], data["human_relatedness_cont"], data['human_relatedness_mayo_srs']
+        return data["human_similarity_cont"], data["human_relatedness_cont"], data['human_relatedness_mayo_srs']

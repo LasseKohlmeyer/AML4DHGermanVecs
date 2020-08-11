@@ -17,16 +17,19 @@ def main():
     # single-term: unsensible for multi token concepts
     # JULIE: JULIE repelacement of concepts
     # SE CUI: Subsequent Estimated CUIs with own method
+    # e = Embedding('German_Medical_Glove_JULIE_NEW_all.kv', "GerVec", "GloVe", "JCoRe")
+    # e.load()
+    # print(e.vectors["C0035647"])
     embeddings_to_benchmark = [
         # # # Related Work
-        # Embedding('German_Medical.kv', "GerVec", "word2vec", "multi-term"),
-        # Embedding('stanford_umls_svd_300.txt', "Stanford", "word2vec", "UNK", internal=False),
-        # Embedding('claims_cuis_hs_300.txt', "Claims", "word2vec", "UNK", internal=False),
-        # Embedding('DeVine_etal_200.txt', "DeVine et al.", "word2vec", "UNK", internal=False),
-        # Embedding('cui2vec_pretrained.txt', "cui2vec", "word2vec", "UNK", internal=False),
+        Embedding('German_Medical.kv', "GerVec", "word2vec", "multi-term"),
+        Embedding('stanford_umls_svd_300.txt', "Choi et al. 2016 [Stanford]", "word2vec", "UNK", internal=False),
+        Embedding('claims_cuis_hs_300.txt', "Choi et al. 2016 [Claims]", "word2vec", "UNK", internal=False),
+        Embedding('DeVine_etal_200.txt', "De Vine et al. 2014", "word2vec", "UNK", internal=False),
+        Embedding('cui2vec_pretrained.txt', "Beam et al. 2020", "word2vec", "UNK", internal=False),
         #
         # # # Flair
-        # Embedding('GGPONC_flair_no_cui_all.kv', "GGPONC", "Flair", "SE CUI", estimate_cui=True),
+        Embedding('GGPONC_flair_no_cui_all.kv', "GGPONC", "Flair", "SE CUI", estimate_cui=True),
 
         Embedding('German_Medical_flair_all.kv', "GerVec", "Flair", "multi-term"),
         Embedding('German_Medical_flair_plain_all.kv', "GerVec", "Flair", "single-term"),
@@ -41,9 +44,9 @@ def main():
         Embedding('100K_news_flair_no_cui_all.kv', "News 100K", "Flair", "SE CUI", estimate_cui=True),
         Embedding('100K_news_flair_no_fine_tune_no_cui_all.kv', "News 100K", "Flair", "SE CUI NF", estimate_cui=True),
         Embedding('100K_news_bert_no_finetune_no_cui_all.kv', "News 100K", "BERT", "SE CUI NF", estimate_cui=True),
-
-        # Gervec / news multiterm flair, single term flair
-        # # GGPONC
+        #
+        # # Gervec / news multiterm flair, single term flair
+        # # # GGPONC
         Embedding('GGPONC_all.kv', "GGPONC", "word2vec", "multi-term"),
         Embedding('GGPONC_fastText_all.kv', "GGPONC", "fastText", "multi-term"),
         Embedding('GGPONC_glove_all.kv', "GGPONC", "GloVe", "multi-term"),
@@ -78,18 +81,18 @@ def main():
         Embedding('3M_news_all.kv', "News 3M", "word2vec", "multi-term"),
 
         # # JSynCC
-        Embedding('JSynnCC_all.kv', "JSynnCC", "word2vec", "multi-term"),
-        Embedding('JSynnCC_fastText_all.kv', "JSynnCC", "fastText", "multi-term"),
-        Embedding('JSynnCC_glove_all.kv', "JSynnCC", "GloVe", "multi-term"),
-        Embedding('JSynnCC_plain_all.kv', "JSynnCC", "word2vec", "single-term"),
-        Embedding('JSynnCC_fastText_plain_all.kv', "JSynnCC", "fastText", "single-term"),
-        Embedding('JSynnCC_glove_plain_all.kv', "JSynnCC", "GloVe", "single-term"),
-        Embedding('JSynnCC_no_cui_all.kv', "JSynnCC", "word2vec", "SE CUI", estimate_cui=True),
-        Embedding('JSynnCC_fastText_no_cui_all.kv', "JSynnCC", "fastText", "SE CUI", estimate_cui=True),
-        Embedding('JSynnCC_glove_no_cui_all.kv', "JSynnCC", "GloVe", "SE CUI", estimate_cui=True),
-        Embedding('JSynnCC_JULIE_all.kv', "JSynnCC", "word2vec", "JCoRe"),
-        Embedding('JSynnCC_fastText_JULIE_all.kv', "JSynnCC", "fastText", "JCoRe"),
-        Embedding('JSynnCC_glove_JULIE_all.kv', "JSynnCC", "GloVe", "JCoRe"),
+        Embedding('JSynnCC_all.kv', "JSynCC", "word2vec", "multi-term"),
+        Embedding('JSynnCC_fastText_all.kv', "JSynCC", "fastText", "multi-term"),
+        Embedding('JSynnCC_glove_all.kv', "JSynCC", "GloVe", "multi-term"),
+        Embedding('JSynnCC_plain_all.kv', "JSynCC", "word2vec", "single-term"),
+        Embedding('JSynnCC_fastText_plain_all.kv', "JSynCC", "fastText", "single-term"),
+        Embedding('JSynnCC_glove_plain_all.kv', "JSynCC", "GloVe", "single-term"),
+        Embedding('JSynnCC_no_cui_all.kv', "JSynCC", "word2vec", "SE CUI", estimate_cui=True),
+        Embedding('JSynnCC_fastText_no_cui_all.kv', "JSynCC", "fastText", "SE CUI", estimate_cui=True),
+        Embedding('JSynnCC_glove_no_cui_all.kv', "JSynCC", "GloVe", "SE CUI", estimate_cui=True),
+        Embedding('JSynnCC_JULIE_all.kv', "JSynCC", "word2vec", "JCoRe"),
+        Embedding('JSynnCC_fastText_JULIE_all.kv', "JSynCC", "fastText", "JCoRe"),
+        Embedding('JSynnCC_glove_JULIE_all.kv', "JSynCC", "GloVe", "JCoRe"),
         # # # PubMed
         Embedding('PubMed_all.kv', "PubMed", "word2vec", "multi-term"),
         Embedding('PubMed_fastText_all.kv', "PubMed", "fastText", "multi-term"),
@@ -117,9 +120,13 @@ def main():
         Embedding('German_Medical_fastText_JULIE_all.kv', "GerVec", "fastText", "JCoRe"),
         Embedding('German_Medical_Glove_JULIE_all.kv', "GerVec", "GloVe", "JCoRe"),
 
-        Embedding('German_Medical_Glove_JULIE_P_all.kv', "GerVec", "GloVe", "JCoRe"),
-        Embedding('German_Medical_Glove_JULIE_P.kv', "GerVec REL", "GloVe", "JCoRe")
+        # Embedding('German_Medical_Glove_JULIE_P_all.kv', "GerVec", "GloVe", "JCoRe"),
+        # Embedding('German_Medical_Glove_JULIE_P.kv', "GerVec REL", "GloVe", "JCoRe")
     ]
+
+    # German_Medical_Glove_JULIE_al
+    # new glove julie
+    # GGONC single term, multi term
 
     evaluators = [
         UMLSEvaluator(from_dir=config["PATH"]["UMLS"]),
@@ -129,14 +136,18 @@ def main():
     ]
 
     benchmarks_to_use = [
-        HumanAssessment,
-        # CategoryBenchmark,
-        # SilhouetteCoefficient,
+        # HumanAssessmentRelatedness,
+        HumanAssessmentRelatednessCont,
+        HumanAssessmentSimilarityCont,
+        HumanAssessmentMayoSRS,
         # CausalityBeam,
         # NDFRTBeam,
         # SemanticTypeBeam,
         # AssociationBeam,
         # ConceptualSimilarityChoi,
+
+        # CategoryBenchmark,
+        # SilhouetteCoefficient,
         # MedicalRelatednessMayTreatChoi,
         # MedicalRelatednessMayPreventChoi
     ]

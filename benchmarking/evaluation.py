@@ -90,31 +90,9 @@ class Evaluation:
 
         df = pd.DataFrame(tuples, columns=['Data set', 'Algorithm', 'Preprocessing', 'Score', '# Concepts',
                                            '# Words', 'CUI Coverage', 'UMLS Coverage', 'Benchmark'])
-        # df["CUI Coverage"] = (df["# Concepts"] / df["# Words"])
-        # print(df)
-        # old_path = 'data/benchmark_results1.csv'
-        # if os.path.isfile(old_path):
-        #     old_data = pd.read_csv(old_path)
-        #
-        #     df.to_csv(old_path, mode='a', index=False, encoding="utf-8")
 
         df.to_csv('data/benchmark_results1.csv', index=False, encoding="utf-8")
         df_table = Evaluation.build_paper_table(df, 'data/benchmark_results2.csv')
         print(df_table)
-        # old_df = pd.read_csv('data/benchmark_results2.csv')
-        # missing_columns_in_new = None
-        # if old_df.columns != df_table.columns:
-        #     missing_columns_in_old = df_table.columns.difference(old_df.columns)
-        #     for column in missing_columns_in_old:
-        #         old_df[column] = np.nan
-        #     missing_columns_in_new = old_df.columns.difference(df_table.columns)
-        # for i, row in df_table.iterrows():
-        #     if old_df[(old_df["Data set"] == row["Data set"]) & (old_df["Algorithm"] == row["Algorithm"]) & (old_df["Preprocessing"] == row["Preprocessing"])].empty:
-        #         if missing_columns_in_new:
-        #             for column in missing_columns_in_new:
-        #                 row[column] = np.nan
-        #         old_df.append(row)
 
-        # concat_df = pd.concat([old_df, df_table], ignore_index=True)
-        # print(concat_df)
 

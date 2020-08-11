@@ -1,5 +1,6 @@
 import os
 
+from resource.UMLS import UMLSMapper
 from vectorization.embeddings import Embeddings
 from utils.transform_data import DataHandler, ConfigLoader
 
@@ -129,11 +130,11 @@ def main():
     #                              embeddings_algorithm="fastText",
     #                              use_multiterm_replacement=False
     #                              )
-    # Embeddings.sentence_data2vec(path=ggponc_path,
-    #                              embedding_name="GGPONC_glove_plain",
-    #                              embeddings_algorithm="Glove",
-    #                              use_multiterm_replacement=False
-    #                              )
+    Embeddings.sentence_data2vec(path=ggponc_path,
+                                 embedding_name="GGPONC_glove_plain",
+                                 embeddings_algorithm="Glove",
+                                 use_multiterm_replacement=False
+                                 )
     # Embeddings.sentence_data2vec(path=ggponc_path,
     #                              embedding_name="GGPONC_no_cui",
     #                              embeddings_algorithm="word2vec",
@@ -349,12 +350,11 @@ def main():
     #                              embeddings_algorithm="fastText",
     #                              umls_replacement=False
     #                              )
-    Embeddings.sentence_data2vec(path=paths_julie,
-                                 embedding_name="German_Medical_Glove_JULIE_P",
-                                 embeddings_algorithm="Glove",
-                                 umls_replacement=False,
-                                 restrict_vectors=True
-                                 )
+    # Embeddings.sentence_data2vec(path=paths_julie,
+    #                              embedding_name="German_Medical_Glove_JULIE_NEW",
+    #                              embeddings_algorithm="Glove",
+    #                              umls_replacement=False,
+    #                              )
     # Flair
     # Embeddings.sentence_data2vec(path=ggponc_path,
     #                              embedding_name="Flair",
@@ -375,7 +375,6 @@ def main():
     # # data_sentences = umls_mapper.replace_documents_with_umls_smart(data_sentences)
     # # data_sentences = DataHandler.preprocess(documents=data_sentences, lemmatize=True, remove_stopwords=True)
     # print((data_sentences[:10]))
-
 
 
 if __name__ == "__main__":

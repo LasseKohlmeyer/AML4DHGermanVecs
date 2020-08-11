@@ -18,6 +18,8 @@ from resource.other_resources import NDFEvaluator, SRSEvaluator, Evaluator
 from joblib import Parallel, delayed
 import multiprocessing
 
+from vectorization.embeddings import Embedding
+
 
 def revert_list_dict(dictionary: Dict[str, Set[str]], filter_collection: Iterable = None) -> Dict[str, Set[str]]:
     reverted_dictionary = defaultdict(set)
@@ -44,7 +46,7 @@ class Benchmark(ABC):
         self.oov_embedding = None
 
     @abstractmethod
-    def evaluate(self) -> float:
+    def evaluate(self) -> Union[float, Tuple[float, float]]:
         pass
 
     def clean(self):
@@ -139,10 +141,12 @@ class Benchmark(ABC):
                     return concept_vector
             return None
 
-    def get_concept_vector(self, concept) -> Union[np.ndarray, None]:
+    def get_concept_vector(self, concept, give_none: bool = False) -> Union[np.ndarray, None]:
         try:
             return self.vectors.get_vector(concept)
         except KeyError:
+            if give_none:
+                return None
             return self.avg_embedding()
 
 
@@ -584,7 +588,7 @@ class MedicalRelatednessMayPreventChoi(MedicalRelatednessChoi):
 
 
 class HumanAssessmentTypes(Enum):
-    RELATEDNESS = "relatedness"
+    # RELATEDNESS = "relatedness"
     RELATEDNESS_CONT = "relatedness_cont"
     SIMILARITY_CONT = "similarity_cont"
     MAYOSRS = "MayoSRS"
@@ -594,7 +598,8 @@ class HumanAssessment(Benchmark):
     def __init__(self, embedding: Embedding,
                  umls_mapper: UMLSMapper,
                  evaluators: List[Evaluator],
-                 use_spearman: bool = True):
+                 use_spearman: bool = True,
+                 asessment_type: HumanAssessmentTypes = None):
         super().__init__(embedding=embedding, umls_mapper=umls_mapper)
         self.srs_evaluator = None
         self.umls_evaluator = None
@@ -603,87 +608,166 @@ class HumanAssessment(Benchmark):
                 self.umls_evaluator = evaluator
             if isinstance(evaluator, SRSEvaluator):
                 self.srs_evaluator = evaluator
-
+        self.asessment_type = asessment_type
         self.use_spearman = use_spearman
 
-    def get_mae(self, human_assessment_dict):
+    def get_mae(self, human_assessment_dict) -> Tuple[float, float]:
         sigma = []
         tqdm_bar = tqdm(human_assessment_dict.items())
+        total_count = 0
+        found_count = 0
         for concept, other_concepts in tqdm_bar:
             concept_vec = self.get_concept_vector(concept)
             if concept_vec is not None:
                 for other_concept in other_concepts:
+                    total_count += 1
                     other_concept_vec = self.get_concept_vector(other_concept)
                     if other_concept_vec is not None:
                         distance = abs(human_assessment_dict[concept][other_concept]
                                        - self.cosine(vector1=concept_vec, vector2=other_concept_vec,
                                                      same_vec_zero=not(concept == other_concept)))
                         sigma.append(distance)
-                        tqdm_bar.set_description(f"Human Assessment ({self.dataset}|{self.algorithm}|"
+                        tqdm_bar.set_description(f"{self.__class__.__name__}  ({self.dataset}|{self.algorithm}|"
                                                  f"{self.preprocessing}): "
                                                  f"{sum(sigma) / len(sigma):.4f}")
+                        found_count += 1
                         tqdm_bar.update()
+            else:
+                total_count += 1
 
         # print(f'found {len(sigma)} assessments in embeddings')
-        return sum(sigma) / len(sigma)
+        benchmark_coverage = found_count / total_count
+        return sum(sigma) / len(sigma), benchmark_coverage
 
-    def get_spearman(self, human_assessment_dict):
+    def get_spearman(self, human_assessment_dict) -> Tuple[float, float]:
         human_assessment_values = []
         cosine_values = []
-        for concept, other_concepts in human_assessment_dict.items():
-            concept_vec = self.get_concept_vector(concept)
+        total_count = 0
+        found_count = 0
+        found_concepts = []
+        all_concepts = []
+        tqdm_bar = tqdm(human_assessment_dict.items(), total=len(human_assessment_dict))
+        # suma = 0
+        for concept, other_concepts in tqdm_bar:
+            total_count += len(other_concepts)
+            for c in other_concepts:
+                all_concepts.append((concept, c))
+            concept_vec = self.get_concept_vector(concept, give_none=True)
             if concept_vec is not None:
                 for other_concept in other_concepts:
-                    other_concept_vec = self.get_concept_vector(other_concept)
+                    other_concept_vec = self.get_concept_vector(other_concept, give_none=True)
                     if other_concept_vec is not None:
                         # cos = self.cosine(vector1=concept_vec, vector2=other_concept_vec,
                         #                   same_vec_zero=not(concept == other_concept))
                         cos = self.cosine(vector1=concept_vec, vector2=other_concept_vec,
                                           same_vec_zero=False)
                         if cos == 1 and concept != other_concept:
-                            human_assessment_values.append(0)
-                            cosine_values.append(cos)
+                            pass
+                            # human_assessment_values.append(0)
+                            # cosine_values.append(cos)
                         else:
                             human_assessment_values.append(human_assessment_dict[concept][other_concept])
                             cosine_values.append(cos)
-        cor, p = spearmanr(human_assessment_values, cosine_values)
-        return cor
+                            found_count += 1
+                            found_concepts.append((concept, other_concept))
+                        tqdm_bar.set_description(f"{self.__class__.__name__} Beam ({self.dataset}|{self.algorithm}|{self.preprocessing})")
+                        tqdm_bar.update()
 
-    def human_assessments(self, human_assestment_type: HumanAssessmentTypes):
+        if len(human_assessment_values) > 0 and len(cosine_values) > 0:
+            cor, _ = spearmanr(human_assessment_values, cosine_values)
+        else:
+            cor = 0
+        benchmark_coverage = found_count / total_count
+        # print(suma)
+        # print('cov1:', benchmark_coverage)
+        # print('cov2:', len(found_concepts)/len(all_concepts))
+        # print(len(found_concepts), len(all_concepts))
+        # print('found:', found_concepts)
+        # print('total', all_concepts)
+        return cor, benchmark_coverage
+
+    def human_assessments(self, human_assestment_type: HumanAssessmentTypes) -> Tuple[float, float]:
         if not self.use_spearman:
-            if human_assestment_type == HumanAssessmentTypes.RELATEDNESS:
-                return self.get_mae(self.srs_evaluator.human_relatedness)
+            if human_assestment_type == HumanAssessmentTypes.RELATEDNESS_CONT:
+                return self.get_mae(self.srs_evaluator.human_relatedness_cont)
             elif human_assestment_type == HumanAssessmentTypes.SIMILARITY_CONT:
                 return self.get_mae(self.srs_evaluator.human_similarity_cont)
             else:
-                return self.get_mae(self.srs_evaluator.human_relatedness_cont)
+                return self.get_mae(self.srs_evaluator.human_relatedness_mayo_srs)
         else:
-            if human_assestment_type == HumanAssessmentTypes.RELATEDNESS:
-                return self.get_spearman(self.srs_evaluator.human_relatedness)
+            if human_assestment_type == HumanAssessmentTypes.RELATEDNESS_CONT:
+                return self.get_spearman(self.srs_evaluator.human_relatedness_cont)
             elif human_assestment_type == HumanAssessmentTypes.SIMILARITY_CONT:
                 return self.get_spearman(self.srs_evaluator.human_similarity_cont)
             else:
-                return self.get_spearman(self.srs_evaluator.human_relatedness_cont)
+                return self.get_spearman(self.srs_evaluator.human_relatedness_mayo_srs)
 
-    def evaluate(self) -> float:
-        assessments = [
-            HumanAssessmentTypes.SIMILARITY_CONT,
-            HumanAssessmentTypes.RELATEDNESS,
-            HumanAssessmentTypes.RELATEDNESS_CONT,
-            HumanAssessmentTypes.MAYOSRS
-        ]
-        scores = []
-        tqdm_bar = tqdm(assessments)
-        for assessment in tqdm_bar:
-            score = self.human_assessments(assessment)
-            scores.append(score)
-            tqdm_bar.set_description(f"Human Assessment Beam ({self.dataset}|{self.algorithm}|{self.preprocessing}): "
-                                     f"{score:.4f}")
-            tqdm_bar.update()
+    def evaluate(self) -> Tuple[float, float]:
+        return self.human_assessments(self.asessment_type)
 
-        if len(scores) == 0:
-            return 0
-        return sum(scores) / len(scores)
+
+class HumanAssessmentSimilarityCont(HumanAssessment):
+    def __init__(self, embedding: Embedding,
+                 umls_mapper: UMLSMapper,
+                 evaluators: List[Evaluator],
+                 use_spearman: bool = True):
+        super().__init__(embedding=embedding,
+                         umls_mapper=umls_mapper,
+                         evaluators=evaluators,
+                         use_spearman=use_spearman,
+                         asessment_type=HumanAssessmentTypes.SIMILARITY_CONT)
+        self.umls_evaluator = None
+        for evaluator in evaluators:
+            if isinstance(evaluator, UMLSEvaluator):
+                self.umls_evaluator = evaluator
+
+
+class HumanAssessmentRelatednessCont(HumanAssessment):
+    def __init__(self, embedding: Embedding,
+                 umls_mapper: UMLSMapper,
+                 evaluators: List[Evaluator],
+                 use_spearman: bool = True):
+        super().__init__(embedding=embedding,
+                         umls_mapper=umls_mapper,
+                         evaluators=evaluators,
+                         use_spearman=use_spearman,
+                         asessment_type=HumanAssessmentTypes.RELATEDNESS_CONT)
+        self.umls_evaluator = None
+        for evaluator in evaluators:
+            if isinstance(evaluator, UMLSEvaluator):
+                self.umls_evaluator = evaluator
+
+
+# class HumanAssessmentRelatedness(HumanAssessment):
+#     def __init__(self, embedding: Embedding,
+#                  umls_mapper: UMLSMapper,
+#                  evaluators: List[Evaluator],
+#                  use_spearman: bool = True):
+#         super().__init__(embedding=embedding,
+#                          umls_mapper=umls_mapper,
+#                          evaluators=evaluators,
+#                          use_spearman=use_spearman,
+#                          asessment_type=HumanAssessmentTypes.RELATEDNESS)
+#         self.umls_evaluator = None
+#         for evaluator in evaluators:
+#             if isinstance(evaluator, UMLSEvaluator):
+#                 self.umls_evaluator = evaluator
+
+
+class HumanAssessmentMayoSRS(HumanAssessment):
+    def __init__(self, embedding: Embedding,
+                 umls_mapper: UMLSMapper,
+                 evaluators: List[Evaluator],
+                 use_spearman: bool = True):
+        super().__init__(embedding=embedding,
+                         umls_mapper=umls_mapper,
+                         evaluators=evaluators,
+                         use_spearman=use_spearman,
+                         asessment_type=HumanAssessmentTypes.MAYOSRS)
+        self.umls_evaluator = None
+        for evaluator in evaluators:
+            if isinstance(evaluator, UMLSEvaluator):
+                self.umls_evaluator = evaluator
 
 
 class AbstractBeamBenchmark(Benchmark, ABC):

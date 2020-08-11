@@ -1,4 +1,3 @@
-import os
 from benchmarking.benchmarks import *
 from utils.transform_data import ConfigLoader
 from vectorization.embeddings import Embeddings, Embedding
@@ -6,20 +5,21 @@ from benchmarking.evaluation import Evaluation
 from resource.other_resources import NDFEvaluator, SRSEvaluator
 import pandas as pd
 
+
 def main():
     config = ConfigLoader.get_config()
     umls_mapper = Embeddings.set_config_and_get_umls_mapper(config)
-    # umls_mapper = UMLSMapper(from_dir=config["PATH"]["UMLS"])
-    # Embeddings.set_umls_mapper(umls_mapper)
-    # Embedding = namedtuple('Embedding', 'vectors dataset algorithm preprocessing')
 
     # multi-term: sensible for multi token concepts
     # single-term: unsensible for multi token concepts
     # JULIE: JULIE repelacement of concepts
     # SE CUI: Subsequent Estimated CUIs with own method
+
+    # sanity check:
     # e = Embedding('German_Medical_Glove_JULIE_NEW_all.kv', "GerVec", "GloVe", "JCoRe")
     # e.load()
     # print(e.vectors["C0035647"])
+
     embeddings_to_benchmark = [
         # # # Related Work
         Embedding('German_Medical.kv', "GerVec", "word2vec", "multi-term"),
@@ -51,7 +51,7 @@ def main():
         Embedding('GGPONC_fastText_all.kv', "GGPONC", "fastText", "multi-term"),
         Embedding('GGPONC_glove_all.kv', "GGPONC", "GloVe", "multi-term"),
         Embedding('GGPONC_plain_all.kv', "GGPONC", "word2vec", "single-term"),
-        Embedding('GGPONC_fastText_plain_all.kv',"GGPONC", "fastText", "single-term"),
+        Embedding('GGPONC_fastText_plain_all.kv', "GGPONC", "fastText", "single-term"),
         Embedding('GGPONC_glove_plain_all.kv', "GGPONC", "GloVe", "single-term"),
         Embedding('GGPONC_no_cui_all.kv', "GGPONC", "word2vec", "SE CUI", estimate_cui=True),
         Embedding('GGPONC_fastText_no_cui_all.kv', "GGPONC", "fastText", "SE CUI", estimate_cui=True),
@@ -158,7 +158,8 @@ def main():
                benchmarks_to_use)
 
     Evaluation.build_paper_table(pd.read_csv('data/benchmark_cache.csv'), "data/benchmark_table_from_cache.csv")
-    # benchmark.category_benchmark("Nucleotide Sequence")
+
+    # whatlies
     # emb = EmbeddingSet({umls_mapper.un_umls(c, single_return=True):
     #                         Embedding(umls_mapper.un_umls(c, single_return=True), ggponc_vecs[c])
     #                     for c in ggponc_vecs.vocab})

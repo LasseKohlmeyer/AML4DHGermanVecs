@@ -198,11 +198,11 @@ class DataHandler:
 
     @staticmethod
     def julielab_replacements(file_path, offset_path, new_path):
-        def replace(string: str, replacement_dict: Dict[str, str]) -> str:
-            for key, value in replacement_dict.items():
-                if str(key) in str(string):
-                    string = string.replace(f'{key}', f' {value} ')
-            return string
+        # def replace(string: str, replacement_dict: Dict[str, str]) -> str:
+        #     for key, value in replacement_dict.items():
+        #         if str(key) in str(string):
+        #             string = string.replace(f'{key}', f' {value} ')
+        #     return string
 
         def most_common(input_list):
             occurence_count = Counter(input_list)
@@ -228,11 +228,11 @@ class DataHandler:
 
     @staticmethod
     def julielab_replacements_offset_using(file_path, offset_path, new_path):
-        def replace(string: str, replacement_dict: Dict[str, str]) -> str:
-            for key, value in replacement_dict.items():
-                if str(key) in str(string):
-                    string = string.replace(f'{key}', f' {value} ')
-            return string
+        # def replace(string: str, replacement_dict: Dict[str, str]) -> str:
+        #     for key, value in replacement_dict.items():
+        #         if str(key) in str(string):
+        #             string = string.replace(f'{key}', f' {value} ')
+        #     return string
 
         def most_common(input_list):
             occurence_count = Counter(input_list)
@@ -297,8 +297,6 @@ def reformat_cui2vec(emb_path: str, new_path: str):
 
     DataHandler.save(new_path, "\n".join(lines))
 
-
-
 # DataHandler.julielab_replacements(file_path='E:\AML4DH-DATA\CPG-AMIA2020\Plain Text\cpg-sentences.txt',
 #                                   offset_path='E:\AML4DH-DATA\offsets\cpg_offsets.tsv',
 #                                   new_path='E:\AML4DH-DATA\CPG-AMIA2020\Plain Text\cpg-sentences_JULIE.txt')
@@ -321,5 +319,7 @@ def reformat_cui2vec(emb_path: str, new_path: str):
 # DataHandler.split_data('E:/AML4DH-DATA/2015_3M_sentences/news_2015_3M-sentences.txt', 100000,
 #                        new_name='E:/AML4DH-DATA/2015_3M_sentences/news_2015_split')
 # DataHandler.read_files_and_save_sentences_to_dir("E:\AML4DH-DATA\german_pubmed")
-# replace_stanford_embeddings('E:/AML4DH-DATA/stanford_cuis_svd_300.txt', 'E:/AML4DH-DATA/NDF/2b_concept_ID_to_CUI.txt', 'E:/AML4DH-DATA/stanford_umls_svd_300.txt')
+# replace_stanford_embeddings('E:/AML4DH-DATA/stanford_cuis_svd_300.txt',
+#                             'E:/AML4DH-DATA/NDF/2b_concept_ID_to_CUI.txt',
+#                             'E:/AML4DH-DATA/stanford_umls_svd_300.txt')
 # reformat_cui2vec('E:/AML4DH-DATA/cui2vec_pretrained.csv', 'E:/AML4DH-DATA/cui2vec_pretrained.txt')

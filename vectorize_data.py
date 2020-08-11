@@ -1,6 +1,4 @@
 import os
-
-from resource.UMLS import UMLSMapper
 from vectorization.embeddings import Embeddings
 from utils.transform_data import DataHandler, ConfigLoader
 
@@ -8,9 +6,6 @@ from utils.transform_data import DataHandler, ConfigLoader
 def main():
     config = ConfigLoader.get_config()
     Embeddings.set_config_and_get_umls_mapper(config)
-    # umls_mapper = UMLSMapper(from_dir=config["PATH"]["UMLS"])
-    # Embeddings.set_umls_mapper(umls_mapper)
-
 
     news_path = os.path.join(config['PATH']['News'], 'news_2015_3M-sentences.txt')
     news_path_julie = os.path.join(config['PATH']['News'], 'news_2015_3M-sentences_JULIE.txt')
@@ -37,11 +32,10 @@ def main():
     # Embeddings.sentence_data2vec(path=news_path,
     #                              embedding_name="3M_news",
     #                              embeddings_algorithm="word2vec")
-    #
-    # Embeddings.sentence_data2vec(path=news_path,
-    #                              embedding_name="100K_news",
-    #                              embeddings_algorithm="word2vec",
-    #                              number_sentences=100000)
+    Embeddings.sentence_data2vec(path=news_path,
+                                 embedding_name="100K_news",
+                                 embeddings_algorithm="word2vec",
+                                 number_sentences=100000)
     # Embeddings.sentence_data2vec(path=news_path,
     #                              embedding_name="100K_news_fastText",
     #                              embeddings_algorithm="fastText",
@@ -65,11 +59,11 @@ def main():
     #                              embeddings_algorithm="Glove",
     #                              number_sentences=100000,
     #                              use_multiterm_replacement=False)
-    # Embeddings.sentence_data2vec(path=news_path_julie,
-    #                              embedding_name="100K_news_JULIE",
-    #                              embeddings_algorithm="word2vec",
-    #                              number_sentences=100000,
-    #                              umls_replacement=False)
+    Embeddings.sentence_data2vec(path=news_path_julie,
+                                 embedding_name="100K_news_JULIE",
+                                 embeddings_algorithm="word2vec",
+                                 number_sentences=100000,
+                                 umls_replacement=False)
     # Embeddings.sentence_data2vec(path=news_path_julie,
     #                              embedding_name="100K_news_fastText_JULIE",
     #                              embeddings_algorithm="fastText",
@@ -116,7 +110,6 @@ def main():
     # Embeddings.sentence_data2vec(path=ggponc_path,
     #                              embedding_name="GGPONC_fastText",
     #                              embeddings_algorithm="fastText")
-    # #fixme check: still nan error?
     # Embeddings.sentence_data2vec(path=ggponc_path,
     #                              embedding_name="GGPONC_glove",
     #                              embeddings_algorithm="Glove")
@@ -220,10 +213,8 @@ def main():
     #                              embeddings_algorithm="Glove",
     #                              umls_replacement=False
     #                              )
-
-
     # German PubMed
-     # Embeddings.sentence_data2vec(path=pubmed_path,
+    # Embeddings.sentence_data2vec(path=pubmed_path,
     #                              embedding_name="PubMed",
     #                              embeddings_algorithm="word2vec")
     # Embeddings.sentence_data2vec(path=pubmed_path,
@@ -279,13 +270,13 @@ def main():
     #                              )
 
     # Medical Concat
-    # Embeddings.sentence_data2vec(path=paths,
-    #                              embedding_name="German_Medical",
-    #                              embeddings_algorithm="word2vec",
-    #                              restrict_vectors=True,
-    #                              umls_replacement=True,
-    #                              use_multiterm_replacement=True
-    #                              )
+    Embeddings.sentence_data2vec(path=paths,
+                                 embedding_name="German_Medical",
+                                 embeddings_algorithm="word2vec",
+                                 restrict_vectors=True,
+                                 umls_replacement=True,
+                                 use_multiterm_replacement=True
+                                 )
     #
     # Embeddings.sentence_data2vec(path=paths,
     #                              embedding_name="German_Medical_plain",
@@ -339,12 +330,11 @@ def main():
     #                              embeddings_algorithm="Glove",
     #                              umls_replacement=False
     #                              )
-
-    # Embeddings.sentence_data2vec(path=paths_julie,
-    #                              embedding_name="German_Medical_JULIE",
-    #                              embeddings_algorithm="word2vec",
-    #                              umls_replacement=False
-    #                              )
+    Embeddings.sentence_data2vec(path=paths_julie,
+                                 embedding_name="German_Medical_JULIE",
+                                 embeddings_algorithm="word2vec",
+                                 umls_replacement=False
+                                 )
     # Embeddings.sentence_data2vec(path=paths_julie,
     #                              embedding_name="German_Medical_fastText_JULIE",
     #                              embeddings_algorithm="fastText",
@@ -361,20 +351,6 @@ def main():
     #                              embeddings_algorithm="Flair",
     #                              flair_corpus_path="data/flair_test123",
     #                              flair_model_path='resources/taggers/language_model')
-
-
-    # # Preprocessing
-    # cpg_words = umls_mapper.standardize_words(cpg_words)
-    # cpg_words = umls_mapper.replace_with_umls(cpg_words)
-    # cpg_words = DataHandler.preprocess(cpg_words)
-    # print((cpg_words[:100]))
-    #
-    # # data_sentences = umls_mapper.standardize_documents(data_sentences)
-    # # data_sentences = umls_mapper.replace_documents_with_umls(data_sentences)
-    # data_sentences = umls_mapper.replace_documents_with_spacy(data_sentences)
-    # # data_sentences = umls_mapper.replace_documents_with_umls_smart(data_sentences)
-    # # data_sentences = DataHandler.preprocess(documents=data_sentences, lemmatize=True, remove_stopwords=True)
-    # print((data_sentences[:10]))
 
 
 if __name__ == "__main__":

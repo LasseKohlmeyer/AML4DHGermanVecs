@@ -17,7 +17,7 @@ from tqdm import tqdm
 from numpy import float32 as real
 from gensim import utils
 from resource.UMLS import UMLSMapper
-from utils.transform_data import DataHandler, ConfigLoader
+from utils.transform_data import DataHandler
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -27,10 +27,6 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 class Embeddings:
     config = None
     umls_mapper = None
-
-    # @classmethod
-    # def set_umls_mapper(cls, umls_mapper: UMLSMapper):
-    #     cls.umls_mapper = umls_mapper
 
     @classmethod
     def set_config_and_get_umls_mapper(cls, config):
@@ -117,13 +113,8 @@ class Embeddings:
             id_counter = 0
             filtered_sentences = [sent for sent in sentences if len(sent) > 0]
             for text in filtered_sentences:
-                # preprocessing (use tokenizer instead)
                 if isinstance(text, str):
                     text = text.split()
-
-                # while len(text) < sentence_length:
-                #     text.insert(0, "%SoS%")
-                # text = text[:sentence_length]
 
                 tokenized_sentences.append(text)
 
@@ -132,10 +123,6 @@ class Embeddings:
                         vocab[token] = id_counter
                         reverse_vocab[id_counter] = token
                         id_counter += 1
-
-            # print('>', vocab)
-            # print('>>', reverse_vocab)
-            # print(tokenized_sentences)
 
             for text_tokens in tokenized_sentences:
                 for i in range(len(text_tokens)):
@@ -146,21 +133,14 @@ class Embeddings:
                         d[vocab[key[0]]][vocab[key[1]]] += 1
                         d[vocab[key[1]]][vocab[key[0]]] += 1
 
-            # for key, sub_dict in d.items():
-            #     for sub_key, value in sub_dict.items():
-            #         d[sub_key][key] = value
             for key in reverse_vocab:
                 if key not in d:
                     d[key][key] = 1
 
             cooccur = {k: {k_i: v_i for k_i, v_i in v.items()} for k, v in d.items()}
-            # cooccur = {k: {k_i: v_i for k_i, v_i in OrderedDict(sorted(v.items())).items()}
-            #            for k, v in OrderedDict(sorted(d.items())).items()}
-            # print(cooccur)
             return cooccur, vocab, reverse_vocab
 
         cooccurrence_dict, vocabulary, reverse_vocabulary = build_co_occurrence_dict()
-
         # print(cooccurrence_dict)
         # print(dim)
         model = glove.Glove(cooccurrence_dict, d=dim, alpha=alpha, x_max=x_max, seed=seed)
@@ -172,12 +152,6 @@ class Embeddings:
             epoch_bar.update()
 
         vecs = [np.array([nan_checker(ele) for ele in vec]) for vec in model.W]
-
-        # print(len(model.W[0]))
-        # print(len(vocabulary), len(reverse_vocabulary))
-
-        # for key in (set(vocabulary.keys()).difference(set(reverse_vocabulary.values()))):
-        #     print(key, vocabulary[key])
 
         return Embeddings.to_gensim_binary({word: vector for word, vector in zip(vocabulary.keys(), vecs)})
 
@@ -296,7 +270,6 @@ class Embeddings:
 
         return keyed_vecs
 
-
     @staticmethod
     def transform_glove_in_word2vec(glove_input_file: str, word2vec_output_file: str):
         glove2word2vec(glove_input_file, word2vec_output_file)
@@ -323,7 +296,7 @@ class Embeddings:
                 addable_concepts.append(concept)
                 addable_vectors.append(sum(concept_vec) / len(concept_vec))
         vectors.add(addable_concepts, addable_vectors)
-        # print(len(addable_concepts))
+
         return vectors
 
     @classmethod
@@ -348,13 +321,8 @@ class Embeddings:
         if isinstance(embeddings_algorithm, str) and embeddings_algorithm.lower() == "flair":
             is_flair = True
 
-
         if isinstance(path, list):
             data_sentences = DataHandler.concat_path_sentences(path)
-            # old:
-            # data_sentences = []
-            # for p in path:
-            #     data_sentences.extend(DataHandler.lines_from_file(path=p))
         else:
             data_sentences = DataHandler.lines_from_file(path=path)
         if number_sentences:
@@ -381,19 +349,14 @@ class Embeddings:
                 cls.umls_mapper = UMLSMapper(from_dir=cls.config["PATH"]["UMLS"])
 
             if use_multiterm_replacement:
-                data_sentences = cls.umls_mapper.replace_documents_with_spacy_multiterm(data_sentences, tokenize=tokenize)
+                data_sentences = cls.umls_mapper.replace_documents_with_spacy_multiterm(data_sentences,
+                                                                                        tokenize=tokenize)
             else:
                 data_sentences = cls.umls_mapper.replace_documents_token_based(data_sentences, tokenize=tokenize)
             print(data_sentences[:10])
         else:
             data_sentences = cls.umls_mapper.spacy_tokenize(data_sentences)
             print(data_sentences[:10])
-        # for s in data_sentences:
-        #     print(s)
-        # data_sentences = umls_mapper.replace_documents_with_umls_smart(data_sentences)
-        # data_sentences = DataHandler.preprocess(documents=data_sentences, lemmatize=True, remove_stopwords=True)
-
-        # vecs = Embeddings.calculate_vectors([cpg_words], use_phrases=False)
 
         if is_flair:
             vecs = Flair.get_flair_vectors(data_sentences,
@@ -470,11 +433,8 @@ class Flair:
             os.mkdir(os.path.join(root_path, 'train'))
         except OSError:
             print("Creation of the directory %s failed" % root_path)
-        # print(root_path)
+
         for j, split in enumerate(train_splits):
-            # if isinstance(split[0], list):
-            #     split = [' '.join(sents) for sents in split]
-            #     print(split)
             DataHandler.save(os.path.join(root_path, 'train', f'train_split_{j}.txt'), '\n'.join(split))
         DataHandler.save(os.path.join(root_path, 'valid.txt'), '\n'.join(val_sentences))
         DataHandler.save(os.path.join(root_path, 'test.txt'), '\n'.join(test_sentences))
@@ -583,24 +543,3 @@ class Flair:
         #     if len(vec) != 3072:
         #         print(key, len(vec))
         return Embeddings.to_gensim_binary(keyed_vecs)
-
-# # sents = [" ".join(['C0850666', 'ist', 'der', 'wesentliche', 'Risikofaktor', 'für', 'das', 'C0699791', '.']),
-# #          " ".join(['Die', 'H.', 'pylori-Eradikation', 'mit', 'dem', 'Ziel', 'der', 'Magenkarzinomprävention', 'sollte', 'bei',
-# #           'den', 'folgenden', 'Risikopersonen', 'durchgeführt', 'werden', '(', 'siehe', 'Tabelle', 'unten', ')', '.'])]
-# # sents = [" ".join(["ente", "futter", "gans", "bier"]), " ".join(["ente", "gans", "another", "esel", "der"])]
-# # print()
-# # print(sents)
-# # sents = ["ente futter gans bier", "ente gans another esel der"]
-# sents = [['Bei', '', 'Malignompatienten', 'einem', 'mehreren', 'dieser', 'C0035648', 'in', 'der', 'Regel', 'die', 'prophylaktische', 'Gabe'],
-# ['Die', 'C0086818', 'wird', 'bei', 'hämatologisch-onkologischen', 'onkologischen', 'C0030705', 'mit', 'akuter', 'Thrombozytenbildungsstörung', 'und', 'zusätzlichen', 'Blutungsrisiken', 'empfohlen', 'bei', ':'], ['Thrombozytenkonzentrate', '(', 'TK', ')', 'werden', 'entweder', 'aus', 'Vollblutspenden', 'oder', 'durch', 'C0032202', 'von', 'gesunden', 'Blutspendern', 'gewonnen', '.'], ['Falls', 'nicht', 'verfügbar', ',', 'sollte', 'eine', 'entsprechende', 'C0010210', 'stattfinden', 'oder', 'Kontaktadressen', 'vermittelt', 'werden', '.'], ['M.', 'Meissner', ',', 'W.', 'Nehls', ',', 'J.', 'Gärtner', ',', 'U.', 'Kleeberg', ',', 'R.', 'Voltz'], [' '], ['C3816218', 'ist', 'definiert', 'als', 'ein', 'Ansatz', 'zur', 'Verbesserung', 'der', 'C0034380', 'von', 'C0030705', 'und', 'ihren', 'Familien', ',', 'die', 'mit', 'Problemen', 'konfrontiert', 'sind', ',', 'welche', 'mit', 'einer', 'lebensbedrohlichen', 'Erkrankung', 'einhergehen', '.']]
-# print(sents)
-# # sents = [" ".join(['C0850666', 'ist', 'der', 'wesentliche', 'Risikofaktor', 'für', 'das', 'C0699791', '.']),
-# #          " ".join(['Die', 'H.', 'pylori-Eradikation', 'mit', 'dem', 'Ziel'])]
-# # sents = [['C0850666', 'ist', 'der', 'wesentliche', 'Risikofaktor', 'für', 'das', 'C0699791', '.'],
-# #          ['Die', 'H.', 'pylori-Eradikation', 'mit', 'dem', 'Ziel']]
-#
-# # print(len(['Die', 'H.', 'pylori-Eradikation', 'mit', 'dem', 'Ziel', 'der', 'Magenkarzinomprävention', 'sollte', 'bei',
-# #           'den', 'folgenden', 'Risikopersonen', 'durchgeführt', 'werden', '(', 'siehe', 'Tabelle', 'unten', ')', '.']))
-# kv = Embeddings.glove_vectors(sentences=sents)
-# print(kv.vocab)
-# # print(kv.most_similar("der"))

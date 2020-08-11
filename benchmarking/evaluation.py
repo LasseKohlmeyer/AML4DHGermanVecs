@@ -1,15 +1,10 @@
 import os
 from collections import defaultdict
-from typing import Tuple, List
-
-import gensim
-
+from typing import List
 from resource.UMLS import UMLSMapper
 from benchmarking.benchmarks import Benchmark
 from resource.other_resources import Evaluator
-import gc
 import pandas as pd
-import numpy as np
 
 from vectorization.embeddings import Embedding
 
@@ -18,17 +13,11 @@ class Evaluation:
     def __init__(self, embeddings: List[Embedding],
                  umls_mapper: UMLSMapper,
                  evaluators: List[Evaluator],
-                 benchmark_classes=List[Benchmark],
-                 extend: bool = False):
+                 benchmark_classes=List[Benchmark]):
         self.benchmark_classes = benchmark_classes
         self.embeddings = embeddings
         self.evaluators = evaluators
         self.umls_mapper = umls_mapper
-        #
-        # self.benchmarks = [benchmark(embedding, umls_mapper, evaluators)
-        #                    for embedding in embeddings
-        #                    for benchmark in benchmark_classes]
-
         self.evaluate()
 
     @staticmethod
@@ -58,8 +47,6 @@ class Evaluation:
         tuples = []
         for embedding in self.embeddings:
             embedding.load()
-            # vec_generator, dataset, algorithm, preprocessing = embedding
-            # for vecs in vec_generator:
             cache_path = 'data/benchmark_cache.csv'
             for benchmark_class in self.benchmark_classes:
                 benchmark = benchmark_class(embedding, self.umls_mapper, self.evaluators)
@@ -74,7 +61,6 @@ class Evaluation:
 
                 cui_cov = nr_concepts / nr_vectors  # ratio of found umls terms vs all vocab entries
                 umls_cov = nr_concepts / nr_german_cuis  # ratio of found umls terms vs total UMLS terms
-                # umls_cov = nr_concepts / len(benchmark.umls_mapper.umls_dict.keys())
 
                 observation = (benchmark.dataset, benchmark.algorithm, benchmark.preprocessing, score,
                                nr_concepts, nr_vectors, cui_cov, umls_cov, benchmark.__class__.__name__,)
@@ -94,5 +80,3 @@ class Evaluation:
         df.to_csv('data/benchmark_results1.csv', index=False, encoding="utf-8")
         df_table = Evaluation.build_paper_table(df, 'data/benchmark_results2.csv')
         print(df_table)
-
-

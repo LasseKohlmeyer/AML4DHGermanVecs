@@ -20,4 +20,4 @@ Add new ressources to resource/other_resources.py or resource/UMLS.py by inherit
 
 ## Adding further benchmarks
 Add new benchmarks to benchmarking/benchmarks by inheriting the abstract class Benchmark and implementing its abstract methods. 
-Use the constructor to define relevant resource files such as knowledge bases, which will be passed by evaluate_embeddings.py as list.
+Use the constructor to define relevant resource files such as knowledge bases, which will be passed by evaluate_embeddings.py or other running instance as list.

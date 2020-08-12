@@ -4,11 +4,8 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from enum import Enum
 from typing import Tuple, Dict, Set, Iterable, List, Union
-
-import gensim
 import numpy as np
 from gensim import matutils
-from gensim.models.fasttext import load_facebook_model
 from scipy.stats.mstats import spearmanr
 from tqdm import tqdm
 

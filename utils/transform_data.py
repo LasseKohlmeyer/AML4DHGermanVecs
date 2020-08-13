@@ -61,7 +61,7 @@ class DataHandler:
 
         docs = []
         for file in tqdm(files, desc=f"load_keyed_vecs documents in {directory}", total=len(files)):
-            docs.append(" ".join(DataHandler.lines_from_file(os.path.join(directory, file), encoding=None)).strip())
+            docs.append(" ".join(DataHandler.lines_from_file(os.path.join(directory, file))).strip())
         return " ".join(docs)
 
     @staticmethod

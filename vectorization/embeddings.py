@@ -245,7 +245,7 @@ class Embeddings:
     @staticmethod
     def load_w2v_format(path: str, binary=False) -> gensim.models.KeyedVectors:
         print(f"load embedding of file {path}...")
-        return gensim.models.KeyedVectors.load_word2vec_format(path, binary=binary)
+        return gensim.models.KeyedVectors.load_word2vec_format(path, binary=binary, unicode_errors='replace')
 
     @classmethod
     def load(cls, path: str = None, file: str = None, internal: bool = True, estimate_cui=False) \
@@ -256,7 +256,9 @@ class Embeddings:
             else:
                 use_folder = 'ExternalEmbeddings'
             path = os.path.join(cls.config['PATH'][use_folder], file)
-        if path.endswith('.kv'):
+        if path.endswith('_b.kv'):
+            keyed_vecs = cls.load_w2v_format(path, binary=True)
+        elif path.endswith('.kv'):
             keyed_vecs = cls.load_keyed_vecs(path)
         elif path.endswith('.txt'):
             keyed_vecs = cls.load_w2v_format(path)
